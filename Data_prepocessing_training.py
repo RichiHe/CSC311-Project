@@ -1,10 +1,38 @@
+"""
+乱写的草稿
+"""
+
 import re
-from typing import Optional
+import json
+from typing import Optional, Dict
 
 import numpy as np
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+
 
 FILENAME = "training_data_clean.csv"
+df = pd.read_csv("FILENAME")
+
+TEXT_COLS = [
+    'In your own words, what kinds of tasks would you use this model for?',
+    'Think of one task where this model gave you a suboptimal response. What did the response look like, and why did you find it suboptimal?',
+    'When you verify a response from this model, how do you usually go about it?'
+]
+
+RATING_COLS = [
+    'How likely are you to use this model for academic tasks?',
+    'Based on your experience, how often has this model given you a response that felt suboptimal?',
+    'How often do you expect this model to provide responses with references or supporting evidence?',
+    "How often do you verify this model's responses?"
+]
+
+MULTI_COLS = [
+    'Which types of tasks do you feel this model handles best? (Select all that apply.)',
+    'For which types of tasks do you feel this model tends to give suboptimal responses? (Select all that apply.)'
+]
+
+LABELs = "label"
 
 def extract_rating(response) -> Optional[int]:
     """
