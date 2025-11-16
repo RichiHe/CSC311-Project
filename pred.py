@@ -13,6 +13,32 @@ RATING_COLS = [2, 4, 7, 8]  # Rating Questions
 MULTI_COLS = [3, 5]     # Multiplicative choices Questions
 
 
+CANONICAL_MULTI_TYPES = [
+    "Math computations",
+    "Writing or debugging code",
+    "Data processing or analysis",
+    "Explaining complex concepts simply",
+    "Writing or editing essays/reports",
+    "Brainstorming or generating creative ideas",
+    "Drafting professional text (e.g., résumés, emails)",
+    "Converting content between formats (e.g., LaTeX)",
+]
+
+MULTI_MAP = {
+    "math computations": "Math computations",
+    "writing or debugging code": "Writing or debugging code",
+    "data processing or analysis": "Data processing or analysis",
+    "explaining complex concepts simply": "Explaining complex concepts simply",
+    "writing or editing essays/reports": "Writing or editing essays/reports",
+    "brainstorming or generating creative ideas": "Brainstorming or generating creative ideas",
+    "drafting professional text": "Drafting professional text (e.g., résumés, emails)",
+    "résumés": "Drafting professional text (e.g., résumés, emails)",
+    "emails": "Drafting professional text (e.g., résumés, emails)",
+    "converting content between formats": "Converting content between formats (e.g., LaTeX)",
+    "latex": "Converting content between formats (e.g., LaTeX)",
+}
+
+
 def train_val_test_split(df: pd.DataFrame,train_ratio: float = 0.7, val_ratio: float = 0.15,shuffle: bool = True,
     random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
@@ -174,72 +200,75 @@ def parse_multiselect(response):
     """
     if pd.isna(response) or response == "":
         return []
-    return [s.strip() for s in str(response).split(",") if s.strip()]
+    clean = str(response).replace("\n", " ").replace("\r", " ")
+    parts = [p.strip() for p in clean.split(",") if p.strip()]
+
+    selected = set()
+    for raw in parts:
+        p = raw.lower()
+        for key, canonical in MULTI_MAP.items():
+            if key in p:
+                selected.add(canonical)
+                break
+    return list(selected)
 
 
 def build_multiselect_vocabulary(df, multi_cols):
     """
     Return {col_idx: {option: index}}
     """
-    vocabs = {}
-    cols = df.columns
-
-    for col_idx in multi_cols:
-        col_name = cols[col_idx]
-        opts = set()
-
-        for value in df[col_name]:
-            for opt in parse_multiselect(value):
-                opts.add(opt)
-
-        vocab = {opt: i for i, opt in enumerate(sorted(opts))}
-        vocabs[col_idx] = vocab
-
-    return vocabs
+    return {t: i for i, t in enumerate(CANONICAL_MULTI_TYPES)}
 
 
-def build_multiselect_matrix(df, multi_cols, vocabs):
+def build_multiselect_matrix(df, vocab):
     """
     Return a matrix of shape: (num_samples, vocab_size)
     Note that the number of one-hot vector choices is len(multi_cols) * len(each_col) ignoring
     if two columns have the same options.
     """
-    matrices = []
-    cols = df.columns
+    n = len(df)
+    V = len(vocab)
+    Q = len(MULTI_COLS)  # 2 questions
+    X = np.zeros((n, Q * V), dtype=np.int32)
 
-    for col_idx in multi_cols:
-        col_name = cols[col_idx]
-        vocab = vocabs[col_idx]
-        X = np.zeros((len(df), len(vocab)), dtype=np.int32)
-
-        for i, (_, row) in enumerate(df.iterrows()):
-            for opt in parse_multiselect(row[col_name]):
-                if opt in vocab:
-                    X[i, vocab[opt]] = 1
-
-        matrices.append(X)
-
-    return np.concatenate(matrices, axis=1)
+    for i, (_, row) in enumerate(df.iterrows()):
+        for q_idx, col_idx in enumerate(MULTI_COLS):
+            response = row.iloc[col_idx]
+            tasks = parse_multiselect(response)
+            base = q_idx * V
+            for t in tasks:
+                if t in vocab:
+                    X[i, base + vocab[t]] = 1
+    return X
 
 
 def build_feature_matrix(
     df: pd.DataFrame,
     text_vocab: Dict[str, int],
-    multi_vocabs: Dict[int, Dict[str, int]],
+    multi_vocab: Dict[str, int],
     text_cols: List[int] = TEXT_COLS,
     rating_cols: List[int] = RATING_COLS,
-    multi_cols: List[int] = MULTI_COLS
 ) -> np.ndarray:
-    """
-    Build text + rating + multiselect matrices and concatenate them.
-    This function assumes vocabularies are already built (usually from train set).
-    """
     X_text = build_text_matrix(df, text_cols, text_vocab)
     X_rating = build_rating_matrix(df, rating_cols)
-    X_multi = build_multiselect_matrix(df, multi_cols, multi_vocabs)
+    X_multi = build_multiselect_matrix(df, multi_vocab)
+    return np.concatenate([X_text, X_rating, X_multi], axis=1)
 
-    X_all = np.concatenate([X_text, X_rating, X_multi], axis=1)
-    return X_all
+
+def debug_print_matrix(name: str, X: np.ndarray, vocab=None):
+    """
+    This function can be deleted later. Just for debugging purposes
+    and showing the shape of each matrix of each type of question.
+    """
+    print(f"\n===== {name} =====")
+    print("Shape:", X.shape)
+    print(X)
+
+    if vocab is not None:
+        print("\nVocabulary (first 30 entries):")
+        items = list(vocab.items())[:30]
+        for k, v in items:
+            print(f"  {k} -> {v}")
 
 
 def main():
@@ -250,12 +279,21 @@ def main():
 
     # 2) build vocabularies ONLY on train
     text_vocab = build_text_vocabulary(df_train, TEXT_COLS)
-    multi_vocabs = build_multiselect_vocabulary(df_train, MULTI_COLS)
+    multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
+
+    # Debug only on train set
+    X_text = build_text_matrix(df_train, TEXT_COLS, text_vocab)
+    X_rating = build_rating_matrix(df_train, RATING_COLS)
+    X_multi = build_multiselect_matrix(df_train, multi_vocab)
+
+    debug_print_matrix("TEXT MATRIX", X_text, text_vocab)
+    debug_print_matrix("RATING MATRIX", X_rating)
+    debug_print_matrix("MULTI MATRIX", X_multi, multi_vocab)
 
     # 3) build feature matrices for each split (use same vocab)
-    X_train = build_feature_matrix(df_train, text_vocab, multi_vocabs)
-    X_val = build_feature_matrix(df_val, text_vocab, multi_vocabs)
-    X_test = build_feature_matrix(df_test, text_vocab, multi_vocabs)
+    X_train = build_feature_matrix(df_train, text_vocab, multi_vocab)
+    X_val = build_feature_matrix(df_val, text_vocab, multi_vocab)
+    X_test = build_feature_matrix(df_test, text_vocab, multi_vocab)
 
     # 4) labels
     y_train = df_train["label"].to_numpy()
