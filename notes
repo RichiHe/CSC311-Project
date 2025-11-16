@@ -1,0 +1,65 @@
+X_train shape: (577, 3289)
+X_val shape:   (123, 3289)
+X_test shape:  (125, 3289)
+totally: 825个data
+
+X_train的三个matrix
+===== TEXT MATRIX =====
+Shape: (577, 3269)
+每一行是一个student的data，每一列是对应的baggings of words，里面的数字代表word出现的频率。
+features是按字母表顺序alphabetically排的
+#可以考虑删掉一些low-frequency的单词，也可以不删。如果要删我再过滤一下我不知道删不删
+
+===== RATING MATRIX =====
+Shape: (577, 4)
+[[1. 2. 2. 4.]
+ [3. 2. 3. 2.]
+ [1. 2. 4. 5.]
+ ...
+ [1. 1. 1. 4.]
+ [4. 3. 3. 2.]
+ [3. 3. 3. 3.]]
+ 每一行是一个student的data，每一列是一个问题的评分
+ 固定顺序对应每个Rating Column： FATING_COLS = [2, 4, 7, 8]
+
+ ===== MULTI MATRIX =====
+Shape: (577, 16)
+[[0 1 0 ... 0 0 0]
+ [0 0 0 ... 0 0 0]
+ [0 1 0 ... 0 0 0]
+ ...
+ [0 0 0 ... 0 0 0]
+ [0 0 0 ... 1 0 0]
+ [1 1 0 ... 0 0 1]]
+每一行是一个student的data，每一列是一个option。
+我没数错的话1个question有八个options，然后两个问题的options都是一样的，所以2*8 = 16
+Options如下
+ CANONICAL_MULTI_TYPES = [
+    "Math computations",
+    "Writing or debugging code",
+    "Data processing or analysis",
+    "Explaining complex concepts simply",
+    "Writing or editing essays/reports",
+    "Brainstorming or generating creative ideas",
+    "Drafting professional text (e.g., résumés, emails)",
+    "Converting content between formats (e.g., LaTeX)",
+]
+
+note：
+前面define这个常量MULTI_MAP在pred.py开头是因为python会把
+“Drafting professional text (e.g., résumés, emails)"算成三个选项，因为这里有三个逗号
+映射完就只算一个了
+
+MULTI_MAP = {
+    "math computations": "Math computations",
+    "writing or debugging code": "Writing or debugging code",
+    "data processing or analysis": "Data processing or analysis",
+    "explaining complex concepts simply": "Explaining complex concepts simply",
+    "writing or editing essays/reports": "Writing or editing essays/reports",
+    "brainstorming or generating creative ideas": "Brainstorming or generating creative ideas",
+    "drafting professional text": "Drafting professional text (e.g., résumés, emails)",
+    "résumés": "Drafting professional text (e.g., résumés, emails)",
+    "emails": "Drafting professional text (e.g., résumés, emails)",
+    "converting content between formats": "Converting content between formats (e.g., LaTeX)",
+    "latex": "Converting content between formats (e.g., LaTeX)",
+}
