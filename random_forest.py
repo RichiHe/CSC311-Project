@@ -13,15 +13,10 @@ def train_random_forest():
 
     # 创建随机森林模型
     rf_model = RandomForestClassifier(
-        n_estimators=30,  # 树的数量
-        max_depth=5,  # 控制树深度，防止过拟合
-        min_samples_split=5,  # 节点分裂所需最小样本数
-        min_samples_leaf=2,  # 叶节点最少样本数
-        max_features='sqrt',  # 每次分裂考虑的特征数
-        bootstrap=True,  # 使用自助采样
-        random_state=42,  # 固定随机种子
-        n_jobs=-1,  # 使用所有CPU核心
-        verbose=1  # 显示训练进度
+        n_estimators=200,  # 树的数量
+        max_depth=25,  # 控制树深度，防止过拟合
+        min_samples_split=15,  # 节点分裂所需最小样本数
+        min_samples_leaf=1,  # 叶节点最少样本数
     )
     # 训练模型
     rf_model.fit(X_train, y_train)
@@ -46,10 +41,10 @@ def train_tuned_random_forest():
 
     # 定义参数网格
     param_grid = {
-        'n_estimators': [50, 150, 200],
-        'max_depth': [10, 15, 30],
-        'min_samples_split': [5, 15, 40],
-        'min_samples_leaf': [1, 2, 4]
+        'n_estimators': [200,],
+        'max_depth': [25],
+        'min_samples_split': [5, 15, 25, 40],
+        'min_samples_leaf': [1, 2, 4, 8]
     }
 
     rf = RandomForestClassifier(random_state=42)
