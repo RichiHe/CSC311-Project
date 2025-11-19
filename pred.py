@@ -36,8 +36,24 @@ def predict(row):
     # return the prediction
     return prediction
 
-
 def predict_all(filename):
+    """
+    Make predictions for the data in filename
+    """
+
+    # Read the file containing the test data
+    X = data_preprocess.preprocess_test(filename)
+    print("X shape:  ", X.shape)
+
+    predictions = []
+    # for idx, row in df.iterrows():
+    #     pred = predict(row)
+    #     predictions.append(pred)
+
+    return predictions
+
+
+def predict_all_by_RF(filename):
     """
     Make predictions for the data in filename
     """
