@@ -42,9 +42,8 @@ def predict_all(filename):
     """
 
     # Read the file containing the test data
-    X, y = data_preprocess.preprocess_test(filename)
+    X = data_preprocess.preprocess_test(filename)
     print("X shape:  ", X.shape)
-    print("y shape: ", y.shape)
 
     predictions = []
     # for idx, row in df.iterrows():

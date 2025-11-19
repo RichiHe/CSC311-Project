@@ -303,8 +303,7 @@ def preprocess_test(filename: str):
     text_vocab = build_text_vocabulary(df, TEXT_COLS)
     multi_vocab = build_multiselect_vocabulary(df, MULTI_COLS)
     X = build_feature_matrix(df, text_vocab, multi_vocab)
-    y = df["label"].to_numpy()
-    return X, y
+    return X
 
 def main():
     df = pd.read_csv(FILENAME)
