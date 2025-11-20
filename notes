@@ -63,3 +63,54 @@ MULTI_MAP = {
     "converting content between formats": "Converting content between formats (e.g., LaTeX)",
     "latex": "Converting content between formats (e.g., LaTeX)",
 }
+
+11.19
+data_process.py
+│
+├── Constants & Config
+│   ├── STATIC_EMBED_PATH / USE_BIGRAMS / USE_MULTI_INTERACTIONS
+│   ├── TEXT_COLS / RATING_COLS / MULTI_COLS
+│   ├── TEXT_VOCAB_PATH / MULTI_VOCAB_PATH
+│   └── STOPWORDS / CANONICAL_MULTI_TYPES / MULTI_MAP
+│
+├── Train / Val / Test Split
+│   └── train_val_test_split()
+│
+├── Text Processing
+│   ├── normalize_to_text_list()
+│   ├── load_static_embeddings()
+│   ├── generate_ngrams()
+│   ├── build_static_embedding_features()
+│   ├── build_text_vocabulary()
+│   └── build_text_matrix()
+│
+├── Rating Processing
+│   ├── extract_rating()
+│   ├── compute_rating_mode()
+│   └── build_rating_matrix()
+│
+├── Multi-select Processing
+│   ├── parse_multiselect()
+│   ├── build_multiselect_vocabulary()
+│   ├── build_multiselect_matrix()
+│   └── build_multiselect_interaction_features()
+│
+├── Extra Features
+│   ├── build_text_length_features()
+│   └── build_multiselect_count_features()
+│
+├── Feature Assembly
+│   └── build_feature_matrix()
+│
+├── Preprocessing API
+│   ├── preprocess_train()
+│   └── preprocess_test()
+│
+└── Main Entry
+    └── main()
+
+X = [BoW | rating | multi | multi_inter | text_len | multi_cnt | embedding]
+
+
+# future work:
+# (1) min_freq can be change to a higher values
