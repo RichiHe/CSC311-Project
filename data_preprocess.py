@@ -12,6 +12,16 @@ import pandas as pd
 Constants/Static
 """
 
+# TODO: IMPORTANT
+# 控制要不要这个feature vectors/matrix的
+USE_BOW = True  #是否用 Bag-of-Words特征
+USE_RATING = True #是否启用评分题（1-5 分）特征
+USE_MULTI = True #是否启用多选题 one-hot 特征
+USE_MULTI_INTERACTIONS = False # 是否加入多选题选项之间的 pairwise 交互特征
+USE_TEXT_LEN = True # 是否加入文本回答长度特征
+USE_MULTI_CNT = True # 是否加入多选题选择项的数量特征
+USE_STATIC_EMBEDDINGS = False # 是否加入静态词向量（如 GloVe / FastText）的文本平均 embedding
+
 FILENAME = "training_data_clean.csv"
 TOKEN_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
 
@@ -58,7 +68,6 @@ STOPWORDS = {
 
 # For extra features
 STATIC_EMBED_PATH = "static_embeddings.txt"  # Path to the static word embedding file
-USE_STATIC_EMBEDDINGS = True  # Whether to enable static embedding features.
 USE_BIGRAMS = False  # Whether to include bigrams in the BoW representation
 USE_MULTI_INTERACTIONS = False  # Whether to include pairwise interaction features for multi-select questions
 
@@ -598,6 +607,13 @@ def build_feature_matrix(df: pd.DataFrame,text_vocab: Dict[int, Dict[str, int]],
     Build the final feature matrix by concatenating multiple feature blocks, including text BoW,
     numeric ratings, multi-select one-hot features and interactions, text length, multi-select
     option counts, and averaged static embeddings.
+    - Bag-of-Words (BoW) text features
+    - Normalized numeric rating values
+    - Multi-select one-hot encoded vectors
+    - Multi-select pairwise interaction features
+    - Text length features
+    - Multi-select option count features
+    - Static embedding averaged vectors
 
     :param df: Input DataFrame containing all raw survey responses.
     :param text_vocab: A mapping {col_idx: {token: index}} defining per-column text vocabularies.
@@ -606,20 +622,62 @@ def build_feature_matrix(df: pd.DataFrame,text_vocab: Dict[int, Dict[str, int]],
     :param rating_cols: A list of column indices corresponding to rating-scale questions.
     :return: A 2D NumPy array representing the concatenated feature matrix for all samples.
     """
-    X_text = build_text_matrix(df, text_cols, text_vocab)
-    X_rating = build_rating_matrix(df, rating_cols)
-    X_multi = build_multiselect_matrix(df, multi_vocab)
+    feature_blocks = []
 
-    if USE_MULTI_INTERACTIONS:
-        X_multi_inter = build_multiselect_interaction_features(df, multi_vocab, MULTI_COLS)
+    # Text Bag-of-Words (BoW) features
+    if USE_BOW:
+        X_text = build_text_matrix(df, text_cols, text_vocab)
+        feature_blocks.append(X_text)
     else:
-        X_multi_inter = np.zeros((len(df), 0), dtype=np.int32)
+        # Append an empty block (0-width) to maintain consistent concatenation
+        feature_blocks.append(np.zeros((len(df), 0)))
 
-    X_text_len = build_text_length_features(df, text_cols)
-    X_multi_cnt = build_multiselect_count_features(df, MULTI_COLS)
-    X_embed = build_static_embedding_features(df, text_cols)
+    #
+    # Rating-scale features (normalized to [0,1])
+    if USE_RATING:
+        X_rating = build_rating_matrix(df, rating_cols)
+        feature_blocks.append(X_rating)
+    else:
+        feature_blocks.append(np.zeros((len(df), 0)))
 
-    return np.concatenate([X_text, X_rating, X_multi, X_multi_inter, X_text_len, X_multi_cnt, X_embed], axis=1)
+    # Multi-select one-hot encoded features
+    if USE_MULTI:
+        X_multi = build_multiselect_matrix(df, multi_vocab)
+        feature_blocks.append(X_multi)
+    else:
+        feature_blocks.append(np.zeros((len(df), 0)))
+
+    # Multi-select pairwise interaction features
+    # Only enabled if both USE_MULTI and USE_MULTI_INTERACTIONS are True
+    if USE_MULTI and USE_MULTI_INTERACTIONS:
+        X_multi_inter = build_multiselect_interaction_features(df, multi_vocab, MULTI_COLS)
+        feature_blocks.append(X_multi_inter)
+    else:
+        feature_blocks.append(np.zeros((len(df), 0)))
+
+    # Text length features (log of token count)
+    if USE_TEXT_LEN:
+        X_text_len = build_text_length_features(df, text_cols)
+        feature_blocks.append(X_text_len)
+    else:
+        feature_blocks.append(np.zeros((len(df), 0)))
+
+    # Multi-select option count features (log of option count)
+    if USE_MULTI_CNT:
+        X_multi_cnt = build_multiselect_count_features(df, MULTI_COLS)
+        feature_blocks.append(X_multi_cnt)
+    else:
+        feature_blocks.append(np.zeros((len(df), 0)))
+
+    # 7. Static embedding averaged vectors (GloVe, FastText, etc）
+    if USE_STATIC_EMBEDDINGS:
+        X_embed = build_static_embedding_features(df, text_cols)
+        feature_blocks.append(X_embed)
+    else:
+        feature_blocks.append(np.zeros((len(df), 0)))
+
+    # Final concatenation of all enabled feature blocks
+    return np.concatenate(feature_blocks, axis=1)
 
 
 def debug_print_matrix(name: str, X: np.ndarray):
