@@ -21,6 +21,7 @@ import random
 import numpy as np
 import pandas as pd
 import data_preprocess
+from ManualRandomForest import ManualRandomForest
 
 
 def predict(row):
@@ -34,7 +35,6 @@ def predict(row):
 
     # return the prediction
     return prediction
-
 
 def predict_all(filename):
     """
@@ -53,6 +53,22 @@ def predict_all(filename):
     return predictions
 
 
+def predict_all_by_RF(filename):
+    """
+    Make predictions for the data in filename
+    """
+
+    # Read the file containing the test data
+    X = data_preprocess.preprocess_test(filename, 80)
+    print("X shape:  ", X.shape)
+
+    manual_rf = ManualRandomForest('rf_model_params.json')
+
+    predictions = manual_rf.predict(X)
+
+    return predictions
+
+
 if __name__ == "__main__":
     #暂时用traning data测试
-    predict_all('training_data_clean.csv')
+    print(predict_all_by_RF('training_data_clean.csv'))
