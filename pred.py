@@ -59,7 +59,7 @@ def predict_all_by_RF(filename):
     """
 
     # Read the file containing the test data
-    X = data_preprocess.preprocess_test(filename)
+    X = data_preprocess.preprocess_test(filename, 80)
     print("X shape:  ", X.shape)
 
     manual_rf = ManualRandomForest('rf_model_params.json')
@@ -71,4 +71,4 @@ def predict_all_by_RF(filename):
 
 if __name__ == "__main__":
     #暂时用traning data测试
-    print(predict_all('training_data_clean.csv'))
+    print(predict_all_by_RF('training_data_clean.csv'))

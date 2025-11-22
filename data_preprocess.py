@@ -40,6 +40,34 @@ MULTI_MAP = {
     "latex": "Converting content between formats (e.g., LaTeX)",
 }
 
+stopwords = {
+    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're",
+    "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves',
+    'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself',
+    'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+    'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those',
+    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+    'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if',
+    'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with',
+    'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after',
+    'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over',
+    'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where',
+    'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other',
+    'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
+    'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've",
+    'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn',
+    "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't",
+    'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't",
+    'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't",
+    'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't",'t', 's', 'd',
+    'use', 'would', 'have', 'has', 'had', 'do', 'does', 'did', 'can', 'will',
+    'with', 'as', 'on', 'by', 'from', 'into', 'through','this', 'that', 'these',
+    'those', 'some', 'any', 'all', 'another', 'other','very', 'just',
+    'so', 'too', 'more', 'most', 'often', 'sometimes', 'usually',
+    'what', 'when', 'where', 'why', 'how', 'which', 'not', 'never', 'my',
+    'me', 'its', 'them', 'they', 'you'
+}
+
 
 def train_val_test_split(df: pd.DataFrame,train_ratio: float = 0.7, val_ratio: float = 0.15,shuffle: bool = True,
                          random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -84,63 +112,105 @@ def normalize_to_text_list(value) -> List[str]:
     return tokens
 
 
-def build_text_vocabulary(df, text_cols,) -> Dict[str, int]:
+def build_text_vocabulary(df, text_cols, dict_len: int = None,
+                          remove_stopwords: bool = True) -> Dict[str, int]:
     """
     Return the list of unique words for all columns in text_cols, denoting as the vocabulary.
-    Note that we return a vocabulary combining all text columns in order to keep the same dimension
-    across multiple columns for free text questions.
-    Returns: dict of {word: index}
-    Note that we count the frequencies of each word in text_cols just for possible future extension
-    like filtering out low-frequency words or analyze data. We did not return the frequencies for our
-    vocabulary this time.
+
+    Args:
+        df: pandas DataFrame
+        text_cols: list of column indices for text columns
+        dict_len: maximum vocabulary size. If None, include all words.
+        remove_stopwords: whether to remove common stopwords
+        use_custom_stopwords: whether to use the custom stopwords list tailored to your data
+
+    Returns:
+        dict of {word: index} for the top dict_len most frequent words
     """
-    if os.path.exists('voc_dict.json'):
-        with open('voc_dict.json', 'r', encoding='utf-8') as f:
+    cache_file = f'voc_dict_{dict_len}.json' if dict_len else 'voc_dict.json'
+    if os.path.exists(cache_file):
+        with open(cache_file, 'r', encoding='utf-8') as f:
             vocab_dict = json.load(f)
         return vocab_dict
 
     vocabulary = {}
-    cols = df.columns # get the list of column headers
+    cols = df.columns
 
-    for col_idx in text_cols: # the index/position of free text questions
+    # Count word frequencies across all text columns
+    for col_idx in text_cols:
         col_name = cols[col_idx]
-        for value in df[col_name]: # each data row in this column
-            tokens = normalize_to_text_list(value) # make each answer into a list of string
-            for token in tokens: # each word in each answer
-                vocabulary[token] = vocabulary.get(token, 0) + 1 # update words and frequency
+        for value in df[col_name]:
+            tokens = normalize_to_text_list(value)
+            for token in tokens:
+                # Skip stopwords if remove_stopwords is True
+                if remove_stopwords and token.lower() in stopwords:
+                    continue
+                vocabulary[token] = vocabulary.get(token, 0) + 1
 
-    words = sorted(vocabulary.keys()) # an ordering alphabetically list of words
-    word_to_index = {word: i for i, word in enumerate(words)} # a dictionary {word: index}
-    with open('voc_dict.json', 'w', encoding='utf-8') as f:
+    # Sort words by frequency and limit to dict_len
+    if dict_len:
+        print("yes dict_len")
+        sorted_words = sorted(vocabulary.items(), key=lambda x: x[1], reverse=True)[:dict_len]
+        words = [word for word, freq in sorted_words]
+    else:
+        words = sorted(vocabulary.keys())
+
+    # Create word to index mapping
+    word_to_index = {word: i for i, word in enumerate(words)}
+
+    # Save to cache
+    with open(cache_file, 'w', encoding='utf-8') as f:
         json.dump(word_to_index, f, ensure_ascii=False, indent=2)
+
+    print(f"Vocabulary size after filtering: {len(word_to_index)}")
     return word_to_index
 
 
-def build_text_matrix(df: pd.DataFrame,text_cols: List[int],vocab: Dict[str, int]) -> np.ndarray:
+def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab: Dict[str, int]) -> np.ndarray:
     """
+    Build text feature matrix where each text column gets its own sub-matrix,
+    and all sub-matrices are concatenated horizontally.
+
     Input:
-    df: pandas DataFrame
-    text_cols: list of int that indicate which columns in df to use
-    Based on the vocabulary list, transfer free text to a bag-of-words matrix in shape (num_samples, vocab_size).
+        df: pandas DataFrame
+        text_cols: list of int that indicate which columns in df to use
+        vocab: dictionary mapping words to indices
+
+    Returns:
+        numpy array of shape (num_samples, len(text_cols) * vocab_size)
+        Structure: [text_array1 | text_array2 | ... | text_arrayN]
     """
-    num_samples = len(df) # the size of data
-    vocab_size = len(vocab) # the size of columns
-    X_text = np.zeros((num_samples, vocab_size), dtype=np.int32) # make an all-zero matrix
+    num_samples = len(df)
+    vocab_size = len(vocab)
 
+    # Create separate matrices for each text column
+    text_matrices = []
     cols = df.columns
-    for row_i, (_, row) in enumerate(df.iterrows()): # iterate each row with index row_i and the row series
 
-        # modify the matrix X_text based on the frequencies of the corresponding word
-        for col_i in text_cols: # only check the free-text questions
-            col_name = cols[col_i]
+    for col_idx in text_cols:
+        # Create bag-of-words matrix for this specific text column
+        col_matrix = np.zeros((num_samples, vocab_size), dtype=np.int32)
+        col_name = cols[col_idx]
+
+        for row_i, (_, row) in enumerate(df.iterrows()):
             text = row[col_name]
-            tokens = normalize_to_text_list(text) # make the entry answer into a list of string
-            for token in tokens: # for each word in this answer
-                if token in vocab:
-                    col = vocab[token] # since our vocabulary is a fixed order dictionary in letters
-                    X_text[row_i, col] += 1 # change the frequencies for this text
+            tokens = normalize_to_text_list(text)
 
-    return X_text
+            for token in tokens:
+                if token in vocab:
+                    vocab_idx = vocab[token]
+                    col_matrix[row_i, vocab_idx] += 1
+
+        text_matrices.append(col_matrix)
+
+    # Concatenate all matrices horizontally
+    # Result shape: (num_samples, num_text_cols * vocab_size)
+    X_text_combined = np.hstack(text_matrices)
+
+    print(f"Combined text matrix shape: {X_text_combined.shape}")
+    print(f"Individual text arrays: {[m.shape for m in text_matrices]}")
+
+    return X_text_combined
 
 
 def extract_rating(response) -> Optional[int]:
@@ -280,11 +350,11 @@ def debug_print_matrix(name: str, X: np.ndarray, vocab=None):
             print(f"  {k} -> {v}")
 
 
-def preprocess_train(filename: str):
+def preprocess_train(filename: str, dict_len: int):
     df = pd.read_csv(filename)
-    df_train, df_val, df_test = train_val_test_split(df)
+    df_train, df_val, df_test = train_val_test_split(df, shuffle=False)
 
-    text_vocab = build_text_vocabulary(df_train, TEXT_COLS)
+    text_vocab = build_text_vocabulary(df_train, TEXT_COLS, dict_len)
     multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
 
     X_train = build_feature_matrix(df_train, text_vocab, multi_vocab)
@@ -297,10 +367,21 @@ def preprocess_train(filename: str):
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
-def preprocess_test(filename: str):
+def preprocess_test(filename: str, dict_len: int):
+    df = pd.read_csv(filename)
+    df_train, df_val, df_test = train_val_test_split(df, shuffle=False)
+
+    text_vocab = build_text_vocabulary(df_train, TEXT_COLS, dict_len)
+    multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
+
+    X_test = build_feature_matrix(df_test, text_vocab, multi_vocab)
+
+    return X_test
+
+def preprocess_submit(filename: str, dict_len: int):
     df = pd.read_csv(filename)
 
-    text_vocab = build_text_vocabulary(df, TEXT_COLS)
+    text_vocab = build_text_vocabulary(df, TEXT_COLS, dict_len)
     multi_vocab = build_multiselect_vocabulary(df, MULTI_COLS)
     X = build_feature_matrix(df, text_vocab, multi_vocab)
     return X
@@ -312,7 +393,7 @@ def main():
     df_train, df_val, df_test = train_val_test_split(df)
 
     # 2) build vocabularies ONLY on train
-    text_vocab = build_text_vocabulary(df_train, TEXT_COLS)
+    text_vocab = build_text_vocabulary(df_train, TEXT_COLS, 100)
     multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
 
     # Debug only on train set

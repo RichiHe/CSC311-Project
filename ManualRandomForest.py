@@ -58,7 +58,7 @@ class ManualRandomForest:
 
 
 def validate_manual_model():
-    rf = RandomForest('training_data_clean.csv')
+    rf = RandomForest('training_data_clean.csv', 80)
     trained_model, metrics, params = rf.train_and_save()
 
 # 2. 验证手动实现的模型与原始模型结果一致
