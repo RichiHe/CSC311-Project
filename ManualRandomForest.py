@@ -1,7 +1,7 @@
 import json
 import numpy as np
 
-from random_forest import RandomForest
+# from random_forest import RandomForest
 
 
 class ManualRandomForest:
@@ -47,22 +47,20 @@ class ManualRandomForest:
 
         return np.array(all_predictions)
 
-
-
-
-def validate_manual_model():
-    rf = RandomForest('training_data_clean.csv', 80)
-    trained_model, metrics, params = rf.train_and_save()
-
-    original_predictions = trained_model.predict(rf._X_val[:100])
-
-    manual_rf = ManualRandomForest('rf_model_params.json')
-    manual_predictions = manual_rf.predict(rf._X_val[:100])
-
-    print("original model prediction:", original_predictions)
-    print("manual model prediction:", manual_predictions)
-    print("prediction uniformity:", np.all(original_predictions == manual_predictions))
-
-
-if __name__ == '__main__':
-    validate_manual_model()
+#
+# def validate_manual_model():
+#     rf = RandomForest('training_data_clean.csv', 80)
+#     trained_model, metrics, params = rf.train_and_save()
+#
+#     original_predictions = trained_model.predict(rf._X_val[:100])
+#
+#     manual_rf = ManualRandomForest('rf_model_params.json')
+#     manual_predictions = manual_rf.predict(rf._X_val[:100])
+#
+#     print("original model prediction:", original_predictions)
+#     print("manual model prediction:", manual_predictions)
+#     print("prediction uniformity:", np.all(original_predictions == manual_predictions))
+#
+#
+# if __name__ == '__main__':
+#     validate_manual_model()
