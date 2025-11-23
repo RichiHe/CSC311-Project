@@ -61,12 +61,8 @@ def validate_manual_model():
     rf = RandomForest('training_data_clean.csv', 80)
     trained_model, metrics, params = rf.train_and_save()
 
-# 2. 验证手动实现的模型与原始模型结果一致
-
-    # 使用原始模型预测
     original_predictions = trained_model.predict(rf._X_val[:100])
 
-    # 使用手动模型预测
     manual_rf = ManualRandomForest('rf_model_params.json')
     manual_predictions = manual_rf.predict(rf._X_val[:100])
 

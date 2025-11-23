@@ -16,7 +16,6 @@ def save_model_for_predpy(model, filename_prefix='rf_model'):
         'trees': []
     }
 
-    # 提取每棵树的参数
     for i, tree in enumerate(model.estimators_):
         tree_data = {
             'node_count': tree.tree_.node_count,
@@ -29,7 +28,6 @@ def save_model_for_predpy(model, filename_prefix='rf_model'):
         }
         model_params['trees'].append(tree_data)
 
-    # 保存为JSON文件（pred.py可以读取）
     with open(f'{filename_prefix}_params.json', 'w') as f:
         json.dump(model_params, f)
 
@@ -57,13 +55,12 @@ class RandomForest:
 
         # 创建随机森林模型
         rf_model = RandomForestClassifier(
-            n_estimators=150,  # 树的数量
-            max_depth=10,  # 控制树深度，防止过拟合
-            min_samples_split=15,  # 节点分裂所需最小样本数
-            min_samples_leaf=2,  # 叶节点最少样本数
+            n_estimators=150,
+            max_depth=10,
+            min_samples_split=15,
+            min_samples_leaf=2,
             random_state=42,
         )
-        # 训练模型
         rf_model.fit(self._X_train, self._y_train)
 
         y_pred = rf_model.predict(self._X_val)
@@ -100,9 +97,6 @@ class RandomForest:
         print(classification_report(self._y_val, y_pred))
 
     def _print_metrics(self, y_true, y_pred, dataset_name: str):
-        """
-        统一的指标打印函数，同时显示准确率和F1分数
-        """
         accuracy = accuracy_score(y_true, y_pred)
         f1_macro = f1_score(y_true, y_pred, average='macro')
         f1_weighted = f1_score(y_true, y_pred, average='weighted')
@@ -124,7 +118,6 @@ class RandomForest:
     def train_tuned_random_forest(self):
         from sklearn.model_selection import GridSearchCV
 
-        # 定义参数网格
         param_grid = {
             'n_estimators': [50, 100, 150, 200, 250],
             'max_depth': [5, 10, 15, 20, 25],
@@ -150,7 +143,6 @@ class RandomForest:
         print(f"best params: {best_params}")
         print(f"best score: {best_score:.4f}")
 
-        # 使用最佳模型在验证集上评估
         best_model = grid_search.best_estimator_
         y_pred = best_model.predict(self._X_val)
 
@@ -163,10 +155,8 @@ class RandomForest:
         """
         训练并保存模型参数的完整流程
         """
-        # 训练模型
         rf_model, metrics = self.train_random_forest()
 
-        # 保存模型参数
         model_params = save_model_for_predpy(rf_model)
 
         return rf_model, metrics, model_params
@@ -180,12 +170,11 @@ if __name__ == "__main__":
             global_best_params = {}
             global_best_dict_len = 0
             global_best_metrix = None
-            for i in range(80, 130, 10):
+            for i in [100, 200, 500, 1000]:
                 random_forest = RandomForest('training_data_clean.csv', i)
                 # random_forest.train_and_save()
 
                 # random_forest.train_random_forest()
-                # 如果需要调参版本，取消下面的注释
                 best_score, best_params, best_metrix = random_forest.train_tuned_random_forest()
                 if best_score > global_best_score:
                     global_best_score = best_score
