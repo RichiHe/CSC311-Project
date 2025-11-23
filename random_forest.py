@@ -46,7 +46,7 @@ class RandomForest:
     _y_test: ndarray
     _model: RandomForestClassifier
 
-    def __init__(self, file_name: str, dict_len: int):
+    def __init__(self, file_name: str, dict_len: int = None):
         self._X_train, self._X_val, self._X_test, self._y_train, self._y_val, self._y_test = \
             data_preprocess.preprocess_train(file_name, dict_len)
         self._model = None
@@ -57,9 +57,9 @@ class RandomForest:
 
         # 创建随机森林模型
         rf_model = RandomForestClassifier(
-            n_estimators=50,  # 树的数量
-            max_depth=15,  # 控制树深度，防止过拟合
-            min_samples_split=15,  # 节点分裂所需最小样本数
+            n_estimators=250,  # 树的数量
+            max_depth=10,  # 控制树深度，防止过拟合
+            min_samples_split=5,  # 节点分裂所需最小样本数
             min_samples_leaf=1,  # 叶节点最少样本数
             random_state=42,
         )
@@ -90,6 +90,15 @@ class RandomForest:
         print("\ndetail report:")
         print(classification_report(self._y_test, y_pred))
 
+    def val_prediction(self):
+        y_pred = self._model.predict(self._X_val)
+
+        print(f"accuracy: {accuracy_score(self._y_val, y_pred):.4f}")
+        print(
+            f"macro avg: {f1_score(self._y_val, y_pred, average='macro'):.4f}")
+        print("\ndetail report:")
+        print(classification_report(self._y_val, y_pred))
+
     def _print_metrics(self, y_true, y_pred, dataset_name: str):
         """
         统一的指标打印函数，同时显示准确率和F1分数
@@ -98,12 +107,12 @@ class RandomForest:
         f1_macro = f1_score(y_true, y_pred, average='macro')
         f1_weighted = f1_score(y_true, y_pred, average='weighted')
 
-        # print(f"\n=== {dataset_name} estimate result ===")
-        # print(f"Accuracy: {accuracy:.4f} ← 主要选择指标")
-        # print(f"F1 Macro: {f1_macro:.4f}")
-        # print(f"F1 Weighted: {f1_weighted:.4f}")
-        # print("\ndetail report:")
-        # print(classification_report(y_true, y_pred))
+        print(f"\n=== {dataset_name} estimate result ===")
+        print(f"Accuracy: {accuracy:.4f}")
+        print(f"F1 Macro: {f1_macro:.4f}")
+        print(f"F1 Weighted: {f1_weighted:.4f}")
+        print("\ndetail report:")
+        print(classification_report(y_true, y_pred))
 
         return {
             'accuracy': accuracy,
@@ -189,9 +198,13 @@ if __name__ == "__main__":
             print(f"global best metrix: {global_best_metrix}")
             print(f"best dict len: {global_best_dict_len}")
         elif user_input == "2":
-            random_forest = RandomForest('training_data_clean.csv', 80)
+            random_forest = RandomForest('training_data_clean.csv', 120)
             random_forest.train_random_forest()
-            random_forest.test_prediction()
+            random_forest.val_prediction()
         elif user_input == "3":
             random_forest = RandomForest('training_data_clean.csv', 80)
             random_forest.train_and_save()
+        elif user_input == "4":
+            random_forest = RandomForest('training_data_clean.csv')
+            random_forest.train_tuned_random_forest()
+

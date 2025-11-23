@@ -42,23 +42,6 @@ def predict_all(filename):
     """
 
     # Read the file containing the test data
-    X = data_preprocess.preprocess_test(filename)
-    print("X shape:  ", X.shape)
-
-    predictions = []
-    # for idx, row in df.iterrows():
-    #     pred = predict(row)
-    #     predictions.append(pred)
-
-    return predictions
-
-
-def predict_all_by_RF(filename):
-    """
-    Make predictions for the data in filename
-    """
-
-    # Read the file containing the test data
     X = data_preprocess.preprocess_test(filename, 80)
     print("X shape:  ", X.shape)
 
@@ -71,4 +54,12 @@ def predict_all_by_RF(filename):
 
 if __name__ == "__main__":
     #暂时用traning data测试
-    print(predict_all_by_RF('training_data_clean.csv'))
+    predictions = predict_all('training_data_clean.csv')
+    print(predictions)
+    valid_lst = ['ChatGPT', 'Claude', 'Gemini']
+    valid_predict = True
+    for prediction in predictions:
+        if prediction not in valid_lst:
+            valid_predict = False
+    print("all prediction are valid:", valid_predict)
+    print("right size:", len(predictions) == 125)

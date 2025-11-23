@@ -69,7 +69,7 @@ stopwords = {
 }
 
 
-def train_val_test_split(df: pd.DataFrame,train_ratio: float = 0.7, val_ratio: float = 0.15,shuffle: bool = True,
+def train_val_test_split(df: pd.DataFrame,train_ratio: float = 0.7, val_ratio: float = 0.15, shuffle: bool = False,
                          random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split the data into train / val / test = 7 : 1.5 : 1.5
@@ -113,7 +113,7 @@ def normalize_to_text_list(value) -> List[str]:
 
 
 def build_text_vocabulary(df, text_cols, dict_len: int = None,
-                          remove_stopwords: bool = True) -> Dict[str, int]:
+                          remove_stopwords: bool = False) -> Dict[str, int]:
     """
     Return the list of unique words for all columns in text_cols, denoting as the vocabulary.
 
@@ -207,8 +207,8 @@ def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab: Dict[str, i
     # Result shape: (num_samples, num_text_cols * vocab_size)
     X_text_combined = np.hstack(text_matrices)
 
-    print(f"Combined text matrix shape: {X_text_combined.shape}")
-    print(f"Individual text arrays: {[m.shape for m in text_matrices]}")
+    # print(f"Combined text matrix shape: {X_text_combined.shape}")
+    # print(f"Individual text arrays: {[m.shape for m in text_matrices]}")
 
     return X_text_combined
 
@@ -350,9 +350,9 @@ def debug_print_matrix(name: str, X: np.ndarray, vocab=None):
             print(f"  {k} -> {v}")
 
 
-def preprocess_train(filename: str, dict_len: int):
+def preprocess_train(filename: str, dict_len: int = None):
     df = pd.read_csv(filename)
-    df_train, df_val, df_test = train_val_test_split(df, shuffle=False)
+    df_train, df_val, df_test = train_val_test_split(df)
 
     text_vocab = build_text_vocabulary(df_train, TEXT_COLS, dict_len)
     multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
@@ -369,7 +369,7 @@ def preprocess_train(filename: str, dict_len: int):
 
 def preprocess_test(filename: str, dict_len: int):
     df = pd.read_csv(filename)
-    df_train, df_val, df_test = train_val_test_split(df, shuffle=False)
+    df_train, df_val, df_test = train_val_test_split(df, shuffle=True)
 
     text_vocab = build_text_vocabulary(df_train, TEXT_COLS, dict_len)
     multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
@@ -393,7 +393,7 @@ def main():
     df_train, df_val, df_test = train_val_test_split(df)
 
     # 2) build vocabularies ONLY on train
-    text_vocab = build_text_vocabulary(df_train, TEXT_COLS, 100)
+    text_vocab = build_text_vocabulary(df_train, TEXT_COLS)
     multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
 
     # Debug only on train set
