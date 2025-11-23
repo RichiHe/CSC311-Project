@@ -57,10 +57,10 @@ class RandomForest:
 
         # 创建随机森林模型
         rf_model = RandomForestClassifier(
-            n_estimators=250,  # 树的数量
+            n_estimators=150,  # 树的数量
             max_depth=10,  # 控制树深度，防止过拟合
-            min_samples_split=5,  # 节点分裂所需最小样本数
-            min_samples_leaf=1,  # 叶节点最少样本数
+            min_samples_split=15,  # 节点分裂所需最小样本数
+            min_samples_leaf=2,  # 叶节点最少样本数
             random_state=42,
         )
         # 训练模型
@@ -87,7 +87,7 @@ class RandomForest:
         print(f"accuracy: {accuracy_score(self._y_test, y_pred):.4f}")
         print(
             f"macro avg: {f1_score(self._y_test, y_pred, average='macro'):.4f}")
-        print("\ndetail report:")
+        print("\ntest prediction detail report:")
         print(classification_report(self._y_test, y_pred))
 
     def val_prediction(self):
@@ -198,9 +198,9 @@ if __name__ == "__main__":
             print(f"global best metrix: {global_best_metrix}")
             print(f"best dict len: {global_best_dict_len}")
         elif user_input == "2":
-            random_forest = RandomForest('training_data_clean.csv', 120)
+            random_forest = RandomForest('training_data_clean.csv', 100)
             random_forest.train_random_forest()
-            random_forest.val_prediction()
+            random_forest.test_prediction()
         elif user_input == "3":
             random_forest = RandomForest('training_data_clean.csv', 80)
             random_forest.train_and_save()

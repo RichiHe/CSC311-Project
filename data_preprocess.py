@@ -6,14 +6,12 @@ from unittest.mock import DEFAULT
 import numpy as np
 import pandas as pd
 
-
 FILENAME = "training_data_clean.csv"
 TOKEN_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
 
-TEXT_COLS = [1, 6, 9]   # Free Texts Questions
+TEXT_COLS = [1, 6, 9]  # Free Texts Questions
 RATING_COLS = [2, 4, 7, 8]  # Rating Questions
-MULTI_COLS = [3, 5]     # Multiplicative choices Questions
-
+MULTI_COLS = [3, 5]  # Multiplicative choices Questions
 
 CANONICAL_MULTI_TYPES = [
     "Math computations",
@@ -41,50 +39,62 @@ MULTI_MAP = {
 }
 
 stopwords = {
-    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', "you're",
+    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you',
+    "you're",
     "you've", "you'll", "you'd", 'your', 'yours', 'yourself', 'yourselves',
     'he', 'him', 'his', 'himself', 'she', "she's", 'her', 'hers', 'herself',
-    'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+    'it', "it's", 'its', 'itself', 'they', 'them', 'their', 'theirs',
+    'themselves',
     'what', 'which', 'who', 'whom', 'this', 'that', "that'll", 'these', 'those',
-    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
-    'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if',
+    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has',
+    'had',
+    'having', 'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but',
+    'if',
     'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for', 'with',
-    'about', 'against', 'between', 'into', 'through', 'during', 'before', 'after',
-    'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off', 'over',
-    'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where',
+    'about', 'against', 'between', 'into', 'through', 'during', 'before',
+    'after',
+    'above', 'below', 'to', 'from', 'up', 'down', 'in', 'out', 'on', 'off',
+    'over',
+    'under', 'again', 'further', 'then', 'once', 'here', 'there', 'when',
+    'where',
     'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more', 'most', 'other',
-    'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too',
-    'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should', "should've",
-    'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't", 'couldn',
-    "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn', "hasn't",
-    'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn', "mustn't",
-    'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn', "wasn't",
-    'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't",'t', 's', 'd',
+    'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
+    'too',
+    'very', 's', 't', 'can', 'will', 'just', 'don', "don't", 'should',
+    "should've",
+    'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', "aren't",
+    'couldn',
+    "couldn't", 'didn', "didn't", 'doesn', "doesn't", 'hadn', "hadn't", 'hasn',
+    "hasn't",
+    'haven', "haven't", 'isn', "isn't", 'ma', 'mightn', "mightn't", 'mustn',
+    "mustn't",
+    'needn', "needn't", 'shan', "shan't", 'shouldn', "shouldn't", 'wasn',
+    "wasn't",
+    'weren', "weren't", 'won', "won't", 'wouldn', "wouldn't", 't', 's', 'd',
     'use', 'would', 'have', 'has', 'had', 'do', 'does', 'did', 'can', 'will',
-    'with', 'as', 'on', 'by', 'from', 'into', 'through','this', 'that', 'these',
-    'those', 'some', 'any', 'all', 'another', 'other','very', 'just',
+    'with', 'as', 'on', 'by', 'from', 'into', 'through', 'this', 'that',
+    'these',
+    'those', 'some', 'any', 'all', 'another', 'other', 'very', 'just',
     'so', 'too', 'more', 'most', 'often', 'sometimes', 'usually',
     'what', 'when', 'where', 'why', 'how', 'which', 'not', 'never', 'my',
     'me', 'its', 'them', 'they', 'you'
 }
 
 
-def train_val_test_split(df: pd.DataFrame,train_ratio: float = 0.7, val_ratio: float = 0.15, shuffle: bool = False,
-                         random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def train_val_test_split(df: pd.DataFrame, train_ratio: float = 0.7,
+                         val_ratio: float = 0.15, shuffle: bool = False,
+                         random_state: int = 42) -> Tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Split the data into train / val / test = 7 : 1.5 : 1.5
     """
     if shuffle:
-        df = df.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+        df = df.sample(frac=1.0, random_state=random_state).reset_index(
+            drop=True)
 
-    n = len(df)
-    n_train = int(n * train_ratio)
-    n_val = int(n * val_ratio)
-    n_test = n - n_train - n_val
-
-    df_train = df.iloc[:n_train]
-    df_val = df.iloc[n_train:n_train + n_val]
-    df_test = df.iloc[n_train + n_val:]
+    df_train = df.iloc[:576]
+    df_val = df.iloc[576:702]
+    df_test = df.iloc[702:]
 
     return df_train, df_val, df_test
 
@@ -103,7 +113,7 @@ def normalize_to_text_list(value) -> List[str]:
     if isinstance(value, list):
         tokens = []
         for v in value:
-            tokens.extend(normalize_to_text_list(v)) # expand the nest list
+            tokens.extend(normalize_to_text_list(v))  # expand the nest list
         return tokens
 
     # The normal case: split the long answer
@@ -150,7 +160,8 @@ def build_text_vocabulary(df, text_cols, dict_len: int = None,
     # Sort words by frequency and limit to dict_len
     if dict_len:
         print("yes dict_len")
-        sorted_words = sorted(vocabulary.items(), key=lambda x: x[1], reverse=True)[:dict_len]
+        sorted_words = sorted(vocabulary.items(), key=lambda x: x[1],
+                              reverse=True)[:dict_len]
         words = [word for word, freq in sorted_words]
     else:
         words = sorted(vocabulary.keys())
@@ -166,7 +177,8 @@ def build_text_vocabulary(df, text_cols, dict_len: int = None,
     return word_to_index
 
 
-def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab: Dict[str, int]) -> np.ndarray:
+def build_text_matrix(df: pd.DataFrame, text_cols: List[int],
+                      vocab: Dict[str, int]) -> np.ndarray:
     """
     Build text feature matrix where each text column gets its own sub-matrix,
     and all sub-matrices are concatenated horizontally.
@@ -236,7 +248,7 @@ def compute_rating_mode(df, rating_cols) -> dict:
     return modes
 
 
-def build_rating_matrix(df: pd.DataFrame, rating_cols:List[int]) -> np.ndarray:
+def build_rating_matrix(df: pd.DataFrame, rating_cols: List[int]) -> np.ndarray:
     """
     Input:
     df: pandas DataFrame
@@ -246,21 +258,26 @@ def build_rating_matrix(df: pd.DataFrame, rating_cols:List[int]) -> np.ndarray:
     num_samples = len(df)
     num_ratings = len(rating_cols)
 
-    X_rating = np.zeros((num_samples, num_ratings), dtype=np.float32) #(824， 4)
+    X_rating = np.zeros((num_samples, num_ratings),
+                        dtype=np.float32)  # (824， 4)
 
     cols = df.columns
     rating_modes = compute_rating_mode(df, rating_cols)
 
-    for row_i, (_, row) in enumerate(df.iterrows()): # row_i = each data's index, row = each data series
-        for j, col_i in enumerate(rating_cols): # j: j-th column of X_rating we want to modify, col_i: the column we are looking at in df
+    for row_i, (_, row) in enumerate(
+            df.iterrows()):  # row_i = each data's index, row = each data series
+        for j, col_i in enumerate(
+                rating_cols):  # j: j-th column of X_rating we want to modify, col_i: the column we are looking at in df
             col_name = cols[col_i]
-            raw_value = row[col_name] # one entry
-            rating = extract_rating(raw_value) # obtain the integer of this rating answer
+            raw_value = row[col_name]  # one entry
+            rating = extract_rating(
+                raw_value)  # obtain the integer of this rating answer
 
             if rating is not None:
                 X_rating[row_i, j] = rating
             else:
-                X_rating[row_i, j] = rating_modes[col_i] # handle missing values
+                X_rating[row_i, j] = rating_modes[
+                    col_i]  # handle missing values
 
     return X_rating
 
@@ -378,6 +395,7 @@ def preprocess_test(filename: str, dict_len: int):
 
     return X_test
 
+
 def preprocess_submit(filename: str, dict_len: int):
     df = pd.read_csv(filename)
 
@@ -385,6 +403,7 @@ def preprocess_submit(filename: str, dict_len: int):
     multi_vocab = build_multiselect_vocabulary(df, MULTI_COLS)
     X = build_feature_matrix(df, text_vocab, multi_vocab)
     return X
+
 
 def main():
     df = pd.read_csv(FILENAME)
