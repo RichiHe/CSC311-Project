@@ -5,11 +5,6 @@ from random_forest import RandomForest
 
 
 class ManualRandomForest:
-    """
-    手动实现的随机森林预测器
-    基于从sklearn提取的参数进行预测
-    """
-
     def __init__(self, model_params_path):
         # 加载模型参数
         with open(model_params_path, 'r') as f:
@@ -21,8 +16,8 @@ class ManualRandomForest:
 
     def predict_single_tree(self, tree, X):
         """对单棵树进行预测"""
-        node = 0  # 从根节点开始
-        while tree['children_left'][node] != -1:  # 不是叶节点
+        node = 0
+        while tree['children_left'][node] != -1:
             if X[tree['feature'][node]] <= tree['threshold'][node]:
                 node = tree['children_left'][node]
             else:
@@ -30,10 +25,10 @@ class ManualRandomForest:
 
         # 到达叶节点，返回预测概率
         node_value = np.array(tree['value'][node])
-        return node_value / node_value.sum()  # 归一化为概率
+        return node_value / node_value.sum()
 
     def predict(self, X):
-        """对单个样本进行预测"""
+
         if len(X.shape) == 1:
             X = X.reshape(1, -1)
 
@@ -42,12 +37,10 @@ class ManualRandomForest:
         for x in X:
             tree_predictions = []
 
-            # 每棵树进行预测
             for tree in self.trees:
                 probs = self.predict_single_tree(tree, x)
                 tree_predictions.append(probs)
 
-            # 平均所有树的预测概率
             avg_probs = np.mean(tree_predictions, axis=0)
             predicted_class = self.classes[np.argmax(avg_probs)]
             all_predictions.append(predicted_class)

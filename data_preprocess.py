@@ -396,7 +396,7 @@ def preprocess_test(filename: str, dict_len: int):
     return X_test
 
 
-def preprocess_submit(filename: str, dict_len: int):
+def preprocess(filename: str, dict_len: int):
     df = pd.read_csv(filename)
 
     text_vocab = build_text_vocabulary(df, TEXT_COLS, dict_len)

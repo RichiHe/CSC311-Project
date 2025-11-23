@@ -36,13 +36,14 @@ def predict(row):
     # return the prediction
     return prediction
 
+
 def predict_all(filename):
     """
     Make predictions for the data in filename
     """
 
     # Read the file containing the test data
-    X = data_preprocess.preprocess_test(filename, 80)
+    X = data_preprocess.preprocess(filename, 100)
     print("X shape:  ", X.shape)
 
     manual_rf = ManualRandomForest('rf_model_params.json')
@@ -50,16 +51,3 @@ def predict_all(filename):
     predictions = manual_rf.predict(X)
 
     return predictions
-
-
-if __name__ == "__main__":
-    #暂时用traning data测试
-    predictions = predict_all('training_data_clean.csv')
-    print(predictions)
-    valid_lst = ['ChatGPT', 'Claude', 'Gemini']
-    valid_predict = True
-    for prediction in predictions:
-        if prediction not in valid_lst:
-            valid_predict = False
-    print("all prediction are valid:", valid_predict)
-    print("right size:", len(predictions) == 125)
