@@ -96,6 +96,15 @@ class RandomForest:
         print("\ndetail report:")
         print(classification_report(self._y_val, y_pred))
 
+    def train_prediction(self):
+        y_pred = self._model.predict(self._X_train)
+
+        print(f"accuracy: {accuracy_score(self._y_train, y_pred):.4f}")
+        print(
+            f"macro avg: {f1_score(self._y_train, y_pred, average='macro'):.4f}")
+        print("\ndetail report:")
+        print(classification_report(self._y_train, y_pred))
+
     def _print_metrics(self, y_true, y_pred, dataset_name: str):
         accuracy = accuracy_score(y_true, y_pred)
         f1_macro = f1_score(y_true, y_pred, average='macro')
@@ -170,7 +179,7 @@ if __name__ == "__main__":
             global_best_params = {}
             global_best_dict_len = 0
             global_best_metrix = None
-            for i in [100, 200, 500, 1000]:
+            for i in range(80, 150, 10):
                 random_forest = RandomForest('training_data_clean.csv', i)
                 # random_forest.train_and_save()
 
@@ -191,9 +200,14 @@ if __name__ == "__main__":
             random_forest.train_random_forest()
             random_forest.test_prediction()
         elif user_input == "3":
-            random_forest = RandomForest('training_data_clean.csv', 80)
+            random_forest = RandomForest('training_data_clean.csv', 100)
             random_forest.train_and_save()
         elif user_input == "4":
             random_forest = RandomForest('training_data_clean.csv')
             random_forest.train_tuned_random_forest()
+        elif user_input == "5":
+            random_forest = RandomForest('training_data_clean.csv', 100)
+            random_forest.train_random_forest()
+            random_forest.train_prediction()
+
 
