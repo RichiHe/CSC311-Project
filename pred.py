@@ -20,7 +20,7 @@ import random
 # numpy and pandas are also permitted
 import numpy as np
 import pandas as pd
-import data_preprocess_jackie
+import data_preprocess
 from ManualRandomForest import ManualRandomForest
 
 

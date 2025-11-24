@@ -464,9 +464,9 @@ def run_full_report():
     print("\nClassification report for best model:")
     print(classification_report(y_test, y_pred, target_names=labels))
 
-
+"""
 def analyze_claude_vs_gemini(min_word_count: int = 5):
-    """
+    ###
     Analyze differences between Claude and Gemini on the original CSV, including:
       1) Mean ratings for rating questions.
       2) Preference patterns for multi-select options.
@@ -476,7 +476,8 @@ def analyze_claude_vs_gemini(min_word_count: int = 5):
     :param min_word_count: Minimum total frequency across both labels for a token to be included
                            in the keyword analysis, to filter out pure noise.
     :return: None. The analysis is printed to stdout.
-    """
+    ###
+    
     # Load original data and keep only Claude / Gemini
     df = pd.read_csv(dp.FILENAME)
     df = df[df["label"].isin(["Claude", "Gemini"])].copy()
@@ -602,6 +603,7 @@ def analyze_claude_vs_gemini(min_word_count: int = 5):
             print(f"    '{w}': Claude_cnt={c_cnt}, Gemini_cnt={g_cnt}, "
                   f"Claude_freq={c_f:.4f}, Gemini_freq={g_f:.4f}, diff={diff:+.4f}")
 
+"""
 
 if __name__ == "__main__":
     run_full_report()   # Run the full model comparison report
@@ -610,6 +612,6 @@ if __name__ == "__main__":
     print("==============================\n")
 
     # Claude / Gemini 差异分析（min_word_count 可以调）
-    analyze_claude_vs_gemini(min_word_count=5)
+    # analyze_claude_vs_gemini(min_word_count=5)
 
     print("\nAll done.")

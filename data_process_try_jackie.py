@@ -80,8 +80,7 @@ _STATIC_EMBED_DIM: int = 0
 This following modulo is for split training/validation/test data without sklearn.
 """
 
-def train_val_test_split(df: pd.DataFrame, train_ratio: float = 0.7, val_ratio: float = 0.15, random_state: int = 666,
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def train_val_test_split(df: pd.DataFrame, group_col: str = "student_id",train_ratio: float = 0.7, val_ratio: float = 0.15, random_state: int = 666):
         """
         Perform a stratified split of a DataFrame into train / validation / test sets, without relying on sklearn.
         Stratified means each label is split independently according to the same ratios. The resulting train/val/test sets
@@ -93,36 +92,23 @@ def train_val_test_split(df: pd.DataFrame, train_ratio: float = 0.7, val_ratio: 
         :param random_state: Random seed for reproducibility.
         :return: Tuple[df_train, df_val, df_test]
         """
-        rng = np.random.default_rng(random_state) # random seed generator
+        rng = np.random.default_rng(random_state)
 
-        # store data of stratified subsets
-        df_train_list = []
-        df_val_list = []
-        df_test_list = []
+        # Unique student IDs
+        students = df[group_col].unique()
+        rng.shuffle(students)
 
-        labels = sorted(df["label"].unique()) # get all unique label values, sorted for consistency
+        n = len(students)
+        n_train = int(n * train_ratio)
+        n_val = int(n * val_ratio)
 
-        for lab in labels:
-            df_lab = df[df["label"] == lab].copy() # Get all rows belonging to this label
-            # Shuffle
-            indices = df_lab.index.to_numpy()
-            rng.shuffle(indices)
-            df_lab = df_lab.loc[indices]
+        train_students = set(students[:n_train])
+        val_students = set(students[n_train:n_train + n_val])
+        test_students = set(students[n_train + n_val:])
 
-            # Split data based on ratios
-            n = len(df_lab)
-            n_train = int(n * train_ratio)
-            n_val = int(n * val_ratio)
-            n_test = n - n_train - n_val
-            # Append the slices
-            df_train_list.append(df_lab.iloc[:n_train])  # df_train_list = [data_label_A, data_label_B, data_label_C]
-            df_val_list.append(df_lab.iloc[n_train:n_train + n_val])
-            df_test_list.append(df_lab.iloc[n_train + n_val:])
-
-        # Combine all label-specific segments and shuffle again
-        df_train = pd.concat(df_train_list).sample(frac=1.0, random_state=random_state).reset_index(drop=True)
-        df_val = pd.concat(df_val_list).sample(frac=1.0, random_state=random_state).reset_index(drop=True)
-        df_test = pd.concat(df_test_list).sample(frac=1.0, random_state=random_state).reset_index(drop=True)
+        df_train = df[df[group_col].isin(train_students)].reset_index(drop=True)
+        df_val = df[df[group_col].isin(val_students)].reset_index(drop=True)
+        df_test = df[df[group_col].isin(test_students)].reset_index(drop=True)
 
         return df_train, df_val, df_test
 

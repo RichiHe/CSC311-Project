@@ -3,7 +3,7 @@ import json
 from numpy import ndarray
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, f1_score
-import data_preprocess_jackie
+import data_preprocess
 
 
 def save_model_for_predpy(model, filename_prefix='rf_model'):
