@@ -1,12 +1,10 @@
 """
 This module provides a complete workflow for training, tuning, and evaluating multiple classification models using
-feature matrices generated from data_processing.py. Its capabilities include: performing hyperparameter searches,
+feature matrices generated from data_process_version2.py. Its capabilities include: performing hyperparameter searches,
 comparing model performance across training/validation/test splits, generating summary tables and visualizations,
 and producing detailed evaluation reports for top-performing models. The module also includes optional analysis tools
 for exploring label-specific behaviors and linguistic variations within the dataset.
 """
-
-
 
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -17,7 +15,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 from collections import Counter
-import data_process_try_jackie as dp
+import data_process_version2 as dp
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -25,41 +23,45 @@ import matplotlib.pyplot as plt
 
 
 def load_pred_data():
-    X_train = np.load("X_train.npy")
-    X_valid = np.load("X_val.npy")
-    X_test = np.load("X_test.npy")
+    """
+    Load feature matrices and labels for train/validation/test splits.
 
-    y_train = np.load("y_train.npy")
-    y_valid = np.load("y_val.npy")
-    y_test = np.load("y_test.npy")
+    Instead of loading from pre-saved .npy files, this function delegates to
+    data_process_version2.preprocess_train to ensure that the latest
+    data-processing pipeline (including TF-IDF and feature engineering)
+    is always used.
 
+    :return: (X_train, y_train, X_valid, y_valid, X_test, y_test)
+    """
+    X_train, X_valid, X_test, y_train, y_valid, y_test = dp.preprocess_train(dp.FILENAME)
     return X_train, y_train, X_valid, y_valid, X_test, y_test
 
+
 """
-predict
+Basic model comparison
 """
 
 def sample_predict():
-    # X_train, y_train, X_valid, y_valid, X_test, y_test  = data_cleanup.data_matrix_setup()
+    """
+    Train a few baseline models (KNN, Random Forest, Naive Bayes) and compare
+    their validation accuracy using the current data-processing pipeline.
+    """
     X_train, y_train, X_valid, y_valid, X_test, y_test = load_pred_data()
 
-    # Initialize models
     models = {
         "KNN": KNeighborsClassifier(),
         "Random Forest": RandomForestClassifier(),
         "Naive Bayes": GaussianNB()
     }
 
-    # Train and evaluate models
     result = {}
     for name, model in models.items():
         model.fit(X_train, y_train)
         accuracy = accuracy_score(y_valid, model.predict(X_valid))
         result[name] = accuracy
 
-    # Print results
     for key in result.keys():
-        print("Model: ", key, "Accuracy: ", result[key])
+        print("Model:", key, "Accuracy:", result[key])
 
     plt.figure(figsize=(6, 4))
     bars = plt.bar(result.keys(), result.values())
@@ -75,10 +77,11 @@ def sample_predict():
 
 
 def knn_predict():
-    # X_train, y_train, X_valid, y_valid, X_test, y_test  = data_cleanup.data_matrix_setup()
+    """
+    Tune KNN by varying the number of neighbors k, using standardized features.
+    """
     X_train, y_train, X_valid, y_valid, X_test, y_test = load_pred_data()
 
-    # Normalize
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_valid = scaler.transform(X_valid)
@@ -98,15 +101,19 @@ def knn_predict():
     plt.grid(True)
     plt.show()
 
-    # test final performance
+    # Example: to evaluate the best k on the test set, uncomment below:
     # best_k = max(result, key=result.get)
     # model = KNeighborsClassifier(n_neighbors=best_k, weights='distance')
     # model.fit(X_train, y_train)
-    # print(f"Final accuracy for {best_k}-NN: ", accuracy_score(y_test, model.predict(scaler.transform(X_test))))
+    # print(f"Final accuracy for {best_k}-NN:",
+    #       accuracy_score(y_test, model.predict(scaler.transform(X_test))))
 
 
 def bagging_knn():
-    # X_train, y_train, X_valid, y_valid, X_test, y_test = data_cleanup.data_matrix_setup()
+    """
+    Simple bagging of several KNN models with majority voting over labels
+    ("ChatGPT", "Claude", "Gemini") on the validation set.
+    """
     X_train, y_train, X_valid, y_valid, X_test, y_test = load_pred_data()
 
     scaler = StandardScaler()
@@ -125,10 +132,10 @@ def bagging_knn():
             model.fit(X_train, y_train)
             models.append(model)
 
-        # Collect predictions
+        # Collect predictions from all models
         all_pred = np.array([model.predict(X_valid) for model in models])
 
-        # 这里是投票（标签是 "ChatGPT", "Claude", "Gemini"）
+        # Majority vote over discrete labels
         pred = []
         categories = ["ChatGPT", "Claude", "Gemini"]
         for i in range(all_pred.shape[1]):
@@ -142,7 +149,6 @@ def bagging_knn():
         print(f"Bag size: {bag_size}, Accuracy: {acc}")
         results.append(acc)
 
-    # Plot accuracy vs. bag size
     plt.figure(figsize=(6, 4))
     plt.plot(bag_sizes, results, marker='o')
     plt.xlabel("Number of KNN Models (Bag Size)")
@@ -155,6 +161,10 @@ def bagging_knn():
 
 
 def rf_predict():
+    """
+    Grid-search style exploration of Random Forest (n_estimators, max_depth)
+    with a heatmap showing validation vs training accuracy.
+    """
     X_train, y_train, X_valid, y_valid, X_test, y_test = load_pred_data()
 
     test_n = [150, 200, 250, 300, 350]
@@ -168,9 +178,11 @@ def rf_predict():
         arow = []
         for d in test_d:
             print("Training:", n, d)
-            model = RandomForestClassifier(n_estimators=n,
-                                           max_depth=d,
-                                           random_state=311)
+            model = RandomForestClassifier(
+                n_estimators=n,
+                max_depth=d,
+                random_state=311
+            )
             model.fit(X_train, y_train)
             val_acc = accuracy_score(y_valid, model.predict(X_valid))
             train_acc = accuracy_score(y_train, model.predict(X_train))
@@ -190,6 +202,10 @@ def rf_predict():
 
 
 def nn_predict():
+    """
+    Train a simple MLP neural network and plot train vs validation accuracy
+    over multiple epochs.
+    """
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -209,7 +225,6 @@ def nn_predict():
         random_state=311
     )
 
-    # Train
     for epoch in range(EPOCHS):
         model.fit(X_train, y_train)
         train_acc = accuracy_score(y_train, model.predict(X_train))
@@ -218,7 +233,6 @@ def nn_predict():
         valid_acc_list.append(valid_acc)
         print(f"Epoch {epoch+1}: train={train_acc:.4f}, valid={valid_acc:.4f}")
 
-    # Plot
     plt.figure(figsize=(7, 5))
     plt.plot(range(1, EPOCHS + 1), train_acc_list, marker="o",
              label="Train Accuracy")
@@ -234,6 +248,10 @@ def nn_predict():
 
 
 def linear_predict():
+    """
+    Tune a simple L2-regularized Logistic Regression model by varying C,
+    and print validation accuracy for each setting.
+    """
     import warnings
     warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -246,7 +264,7 @@ def linear_predict():
             C=C,
             penalty="l2",
             solver="lbfgs",
-            max_iter=20
+            max_iter=200
         )
         model.fit(X_train, y_train)
         val_acc = accuracy_score(y_valid, model.predict(X_valid))
@@ -254,7 +272,10 @@ def linear_predict():
 
 
 def evaluate_model():
-    # test set evaluate
+    """
+    Train a fixed Random Forest setting and evaluate on the held-out test set,
+    printing global accuracy and the most frequent mis-predictions.
+    """
     X_train, y_train, X_valid, y_valid, X_test, y_test = load_pred_data()
 
     model = RandomForestClassifier(
@@ -267,9 +288,8 @@ def evaluate_model():
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     test_acc = accuracy_score(y_test, y_pred)
-    print("Test accuracy: ", test_acc)
+    print("Test accuracy:", test_acc)
 
-    from collections import Counter
     errors = Counter()
     for yt, yp in zip(y_test, y_pred):
         if yt != yp:
@@ -295,17 +315,21 @@ def run_full_report():
     """
     Train, tune, and compare several classification models, then generate a full evaluation report.
 
-    :param None: This function does not take any arguments and relies on load_pred_data() to fetch data.
-    :return: None. Results are printed to stdout and plots are shown via matplotlib.
+    Steps:
+      1) Tune Logistic Regression over C.
+      2) Tune Random Forest over (n_estimators, max_depth).
+      3) Tune KNN over k with standardized features.
+      4) Retrain best configurations on train+valid and evaluate on the test set.
+      5) Summarize test accuracy for all models and show confusion matrix and
+         classification report for the best-performing model.
     """
-    # get the data
     X_train, y_train, X_valid, y_valid, X_test, y_test = load_pred_data()
 
-    # combine train + val for training and tuning
+    # combine train + val for final training of best models
     X_train_full = np.concatenate([X_train, X_valid], axis=0)
     y_train_full = np.concatenate([y_train, y_valid], axis=0)
 
-    results = {}  # name -> {"val_acc": , "test_acc": , "model": model}
+    results = {}  # name -> {"val_acc": , "test_acc": , "model": model, "extra": {...}}
 
     # Logistic Regression
     Cs = [0.01, 0.03, 0.1, 0.3, 1, 3]
@@ -327,7 +351,6 @@ def run_full_report():
             best_val = val_acc
             best_C = C
 
-    # use train+val retrain and evaluate on the test dataset again
     log_best = LogisticRegression(
         C=best_C,
         penalty="l2",
@@ -358,14 +381,12 @@ def run_full_report():
                 random_state=311,
             )
             rf.fit(X_train, y_train)
-            train_acc = accuracy_score(y_train, rf.predict(X_train))  # TODO: (Check later)
             val_acc = accuracy_score(y_valid, rf.predict(X_valid))
             print(f"n={n}, depth={d}: val_acc={val_acc:.4f}")
             if val_acc > best_val:
                 best_val = val_acc
                 best_params = (n, d)
 
-    # best hyperparameters for retraining
     best_n, best_d = best_params
     rf_best = RandomForestClassifier(
         n_estimators=best_n,
@@ -383,11 +404,11 @@ def run_full_report():
 
     # KNN
     print("\n=== Tuning KNN (k) ===")
-    # normalization
     scaler = StandardScaler()
     X_train_s = scaler.fit_transform(X_train)
     X_valid_s = scaler.transform(X_valid)
-    X_train_full_s = scaler.fit_transform(X_train_full)  # 用全部重新 fit
+    # fit on full train+valid after best k is chosen
+    X_train_full_s = scaler.fit_transform(X_train_full)
     X_test_s = scaler.transform(X_test)
 
     test_k = [1, 2, 3, 4, 5, 8, 10, 15, 20, 30]
@@ -412,14 +433,12 @@ def run_full_report():
         "extra": {"k": best_k},
     }
 
-
-    # graph
-    print("\n=== Summary (use best setting for each model) ===")
+    # Summary
+    print("\n=== Summary (best setting for each model) ===")
     print(f"{'Model':<20} {'Best Val':>10} {'Test Acc':>10}  Extra")
     for name, info in results.items():
         print(f"{name:<20} {info['val_acc']:.4f}    {info['test_acc']:.4f}  {info['extra']}")
 
-    # Test Accuracy comparasion graph
     model_names = list(results.keys())
     test_accs = [results[m]["test_acc"] for m in model_names]
 
@@ -440,7 +459,6 @@ def run_full_report():
     best_info = results[best_model_name]
     print(f"\n=== Best model on test set: {best_model_name} ===")
 
-    # KNN
     if best_model_name == "KNN":
         best_model, best_scaler = best_info["model"]
         X_test_used = best_scaler.transform(X_test)
@@ -464,9 +482,18 @@ def run_full_report():
     print("\nClassification report for best model:")
     print(classification_report(y_test, y_pred, target_names=labels))
 
+
+"""
+Optional analysis utilities below (currently commented out):
+
+They demonstrate how to use data_process_version2 (imported as dp) to
+analyze label-specific behavior such as Claude vs Gemini differences
+in ratings, multi-select choices, text length, and keyword usage.
+"""
+
 """
 def analyze_claude_vs_gemini(min_word_count: int = 5):
-    ###
+    '''
     Analyze differences between Claude and Gemini on the original CSV, including:
       1) Mean ratings for rating questions.
       2) Preference patterns for multi-select options.
@@ -476,142 +503,19 @@ def analyze_claude_vs_gemini(min_word_count: int = 5):
     :param min_word_count: Minimum total frequency across both labels for a token to be included
                            in the keyword analysis, to filter out pure noise.
     :return: None. The analysis is printed to stdout.
-    ###
-    
-    # Load original data and keep only Claude / Gemini
+    '''
     df = pd.read_csv(dp.FILENAME)
     df = df[df["label"].isin(["Claude", "Gemini"])].copy()
-    print(f"Loaded {len(df)} rows with label in {{Claude, Gemini}}")
-
-    labels = ["Claude", "Gemini"]
-
-    # rating questions
-    print("\n===== [Part 1] Rating 问题的 Claude / Gemini 差异 =====")
-    cols = df.columns
-    for col_idx in dp.RATING_COLS:
-        col_name = cols[col_idx]
-        tmp_col = f"rating_col_{col_idx}"
-        df[tmp_col] = df.iloc[:, col_idx].apply(dp.extract_rating)
-
-        print(f"\n[Rating Question] 列 {col_idx}: {col_name}")
-        for lab in labels:
-            sub = df[df["label"] == lab][tmp_col].dropna()
-            if len(sub) == 0:
-                print(f"  {lab}: 无有效数据")
-                continue
-            print(f"  {lab}: mean={sub.mean():.3f}, std={sub.std():.3f}, n={len(sub)}")
-
-    # multi-select questions
-    print("\n===== [Part 2] Multi-select 问题的 Claude / Gemini 差异 =====")
-    V = len(dp.CANONICAL_MULTI_TYPES)
-
-    for q_idx, col_idx in enumerate(dp.MULTI_COLS):
-        col_name = cols[col_idx]
-        print(f"\n[Multi Question #{q_idx+1}] 列 {col_idx}: {col_name}")
-
-        # label -> option -> count
-        label_option_count = {lab: Counter() for lab in labels}
-        label_total = {lab: 0 for lab in labels}
-
-        for _, row in df.iterrows():
-            lab = row["label"]
-            tasks = dp.parse_multiselect(row.iloc[col_idx])
-            if len(tasks) == 0:
-                continue
-            label_total[lab] += 1
-            for t in tasks:
-                label_option_count[lab][t] += 1
-
-        # Compute selection rates per option
-        diff_list = []
-        for opt in dp.CANONICAL_MULTI_TYPES:
-            claude_cnt = label_option_count["Claude"][opt]
-            gemini_cnt = label_option_count["Gemini"][opt]
-            claude_rate = claude_cnt / label_total["Claude"] if label_total["Claude"] > 0 else 0.0
-            gemini_rate = gemini_cnt / label_total["Gemini"] if label_total["Gemini"] > 0 else 0.0
-            diff = claude_rate - gemini_rate
-            diff_list.append((opt, claude_rate, gemini_rate, diff))
-
-        print("  Option                                          Claude%    Gemini%    (Claude-Gemini)")
-        for opt, c_r, g_r, diff in diff_list:
-            print(f"  {opt:<45} {c_r:7.3f}   {g_r:7.3f}   {diff:7.3f}")
-
-        # Show top-5 options with the largest absolute difference
-        print("\n  >>> 按差值绝对值排序的 Top 5 选项：")
-        diff_list_sorted = sorted(diff_list, key=lambda x: abs(x[3]), reverse=True)[:5]
-        for opt, c_r, g_r, diff in diff_list_sorted:
-            print(f"    {opt}: Claude={c_r:.3f}, Gemini={g_r:.3f}, diff={diff:+.3f}")
-
-    # free-text length differences
-    print("\n===== [Part 3] 自由文本长度的 Claude / Gemini 差异 =====")
-    for col_idx in dp.TEXT_COLS:
-        col_name = cols[col_idx]
-        len_col = f"text_len_{col_idx}"
-        df[len_col] = df.iloc[:, col_idx].apply(
-            lambda x: len(dp.normalize_to_text_list(x))
-        )
-
-        print(f"\n[Text Question] 列 {col_idx}: {col_name}")
-        for lab in labels:
-            sub = df[df["label"] == lab][len_col]
-            print(f"  {lab}: mean_len={sub.mean():.3f}, std={sub.std():.3f}, n={len(sub)}")
-
-    # keyword preference differences
-    print("\n===== [Part 4] 文本关键词的 Claude / Gemini 差异 =====")
-    for col_idx in dp.TEXT_COLS:
-        col_name = cols[col_idx]
-        print(f"\n[Text Question] 列 {col_idx}: {col_name}")
-
-        # Count word frequencies per label
-        word_count = {lab: Counter() for lab in labels}
-        total_tokens = {lab: 0 for lab in labels}
-
-        for _, row in df.iterrows():
-            lab = row["label"]
-            tokens = dp.normalize_to_text_list(row.iloc[col_idx])
-            word_count[lab].update(tokens)
-            total_tokens[lab] += len(tokens)
-
-        # Only keep words with total count >= min_word_count
-        all_words = set(word_count["Claude"].keys()) | set(word_count["Gemini"].keys())
-        stats = []
-        for w in all_words:
-            c_cnt = word_count["Claude"][w]
-            g_cnt = word_count["Gemini"][w]
-            if c_cnt + g_cnt < min_word_count:
-                continue
-            c_freq = c_cnt / total_tokens["Claude"] if total_tokens["Claude"] > 0 else 0.0
-            g_freq = g_cnt / total_tokens["Gemini"] if total_tokens["Gemini"] > 0 else 0.0
-            diff = c_freq - g_freq
-            stats.append((w, c_cnt, g_cnt, c_freq, g_freq, diff))
-
-        if not stats:
-            print("  (没有达到频次阈值的词，可以调低 min_word_count 再试一次。)")
-            continue
-
-        # Words more preferred by Claude
-        print("  >>> Claude 更常用的 Top 20 词（按 Claude_freq - Gemini_freq 排序）")
-        top_claude = sorted(stats, key=lambda x: x[5], reverse=True)[:20]
-        for w, c_cnt, g_cnt, c_f, g_f, diff in top_claude:
-            print(f"    '{w}': Claude_cnt={c_cnt}, Gemini_cnt={g_cnt}, "
-                  f"Claude_freq={c_f:.4f}, Gemini_freq={g_f:.4f}, diff={diff:+.4f}")
-
-        # Words more preferred by Gemini
-        print("\n  >>> Gemini 更常用的 Top 20 词")
-        top_gemini = sorted(stats, key=lambda x: x[5])[:20]
-        for w, c_cnt, g_cnt, c_f, g_f, diff in top_gemini:
-            print(f"    '{w}': Claude_cnt={c_cnt}, Gemini_cnt={g_cnt}, "
-                  f"Claude_freq={c_f:.4f}, Gemini_freq={g_f:.4f}, diff={diff:+.4f}")
-
+    ...
 """
 
 if __name__ == "__main__":
-    run_full_report()   # Run the full model comparison report
+    run_full_report()
     print("\n==============================")
-    print("模型评估完成，接下来做 Claude vs Gemini 差异分析")  # TODO: 分析结果
+    print("Model evaluation finished. (Full report above.)")
     print("==============================\n")
 
-    # Claude / Gemini 差异分析（min_word_count 可以调）
+    # Optional: Claude / Gemini difference analysis (uncomment if needed)
     # analyze_claude_vs_gemini(min_word_count=5)
 
     print("\nAll done.")

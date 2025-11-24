@@ -142,3 +142,32 @@ USE_MULTI_CNT = True
 USE_STATIC_EMBEDDINGS = False
 # 是否加入静态词向量（如 GloVe / FastText）的文本平均 embedding
 # 作用：对每段文本做词向量平均，捕获语义信息
+
+
+We develop a classifier that predicts whether ChatGPT, Claude, or Gemini produced each student survey response. The dataset contains 825 samples, each consisting of free-text descriptions, 1–5 rating items, and multi-select task-type indicators. We evaluate three model families: a neural network trained on TF–IDF features, a Naive Bayes model using the same representation, and a Random Forest trained on an engineered feature space combining bag-of-words text counts, encoded ratings, and multi-select indicators; we also include a simple k-Nearest Neighbors baseline for comparison. Our final deployed model is a RandomForestClassifier, reproduced for inference using a custom ManualRandomForest implementation. It achieves 0.92 training accuracy, 0.75 validation accuracy, and an estimated 0.70 test accuracy. Random Forests perform best because they capture nonlinear interactions across heterogeneous features and provide the most stable validation performance among all models evaluated.
+We developed a classifier that predicts which large language model
+(ChatGPT, Claude, or Gemini) produced each student survey response.
+The dataset contains 825 responses, with three responses collected
+from every student. Each response includes free-text descriptions,
+1--5 rating questions, and several multi-select task-type indicators.
+
+We evaluated three main model families. The first is a neural network
+trained on TF--IDF features. The second is a Naive Bayes model that
+uses the same TF--IDF representation. The third is a Random Forest
+trained on an engineered feature space that combines bag-of-words
+text counts, encoded rating values, and multi-select indicators.
+We also tested a simple k-Nearest Neighbors baseline that relies only
+on numeric and categorical features.
+
+Our final deployed model is a RandomForestClassifier, which we
+reproduced in the \texttt{ManualRandomForest} implementation for
+inference. The model achieves 0.92 training accuracy, 0.75 validation
+accuracy, and an estimated 0.70 test accuracy. Random Forests provided
+the strongest results because they capture nonlinear interactions
+across heterogeneous features, avoid the independence assumptions of
+Naive Bayes, do not rely on the linear structure required by Logistic
+Regression, and demonstrate the most stable validation performance
+across all models we evaluated.
+
+
+% ================================

@@ -80,4 +80,3 @@ if __name__ == "__main__":
     mlp = train_mlp_classifier(X_train, y_train, X_val, y_val)
 
     # After training, save parameters for pred.py
-    save_mlp_parameters(mlp)
