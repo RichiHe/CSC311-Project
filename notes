@@ -63,3 +63,82 @@ MULTI_MAP = {
     "converting content between formats": "Converting content between formats (e.g., LaTeX)",
     "latex": "Converting content between formats (e.g., LaTeX)",
 }
+
+11.19
+data_process.py
+│
+├── Constants & Config
+│   ├── STATIC_EMBED_PATH / USE_BIGRAMS / USE_MULTI_INTERACTIONS
+│   ├── TEXT_COLS / RATING_COLS / MULTI_COLS
+│   ├── TEXT_VOCAB_PATH / MULTI_VOCAB_PATH
+│   └── STOPWORDS / CANONICAL_MULTI_TYPES / MULTI_MAP
+│
+├── Train / Val / Test Split
+│   └── train_val_test_split()
+│
+├── Text Processing
+│   ├── normalize_to_text_list()
+│   ├── load_static_embeddings()
+│   ├── generate_ngrams()
+│   ├── build_static_embedding_features()
+│   ├── build_text_vocabulary()
+│   └── build_text_matrix()
+│
+├── Rating Processing
+│   ├── extract_rating()
+│   ├── compute_rating_mode()
+│   └── build_rating_matrix()
+│
+├── Multi-select Processing
+│   ├── parse_multiselect()
+│   ├── build_multiselect_vocabulary()
+│   ├── build_multiselect_matrix()
+│   └── build_multiselect_interaction_features()
+│
+├── Extra Features
+│   ├── build_text_length_features()
+│   └── build_multiselect_count_features()
+│
+├── Feature Assembly
+│   └── build_feature_matrix()
+│
+├── Preprocessing API
+│   ├── preprocess_train()
+│   └── preprocess_test()
+│
+└── Main Entry
+    └── main()
+
+X = [BoW | rating | multi | multi_inter | text_len | multi_cnt | embedding]
+
+# Feature switches（特征开关）
+# 每个变量控制某一类特征是否加入最终的特征矩阵 X
+
+USE_BOW = True
+# 是否启用文本 Bag-of-Words（词袋）特征
+# 作用：将自由文本题转成词频向量，是最主要的文本特征
+# 特点：维度较大
+
+USE_RATING = True
+# 是否启用评分题（1-5 分）特征
+# 作用：将类似“3 - Sometimes”转成数字并归一化到 0–1
+
+USE_MULTI = True
+# 是否启用多选题 one-hot 特征
+# 作用：将多选题选项映射为 0/1 向量（例如是否选择了某项任务）
+
+USE_MULTI_INTERACTIONS = False
+# 是否加入多选题选项之间的 pairwise 交互特征
+# 作用：例如同时选择“数学计算”与“写代码”会产生一个新特征
+
+USE_TEXT_LEN = True
+# 是否加入文本回答长度特征
+# 作用：每个文本回答的 token 数量（log 压缩）
+
+USE_MULTI_CNT = True
+# 是否加入多选题选择项的数量特征
+# 作用：每个多选题中选了多少项（log 压缩）
+
+USE_STATIC_EMBEDDINGS = False
+# 是否加入静态词向量（如 GloVe / FastText）的文本平均 embedding
+# 作用：对每段文本做词向量平均，捕获语义信息
