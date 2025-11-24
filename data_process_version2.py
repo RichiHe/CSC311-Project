@@ -14,27 +14,28 @@ Constants/Static
 
 # TODO: IMPORTANT
 # 控制要不要这个feature vectors/matrix的
-USE_BOW = True  #是否用 Bag-of-Words特征
-USE_RATING = True #是否启用评分题（1-5 分）特征
-USE_MULTI = True #是否启用多选题 one-hot 特征
-USE_MULTI_INTERACTIONS = False # 是否加入多选题选项之间的 pairwise 交互特征
-USE_TEXT_LEN = True # 是否加入文本回答长度特征
-USE_MULTI_CNT = True # 是否加入多选题选择项的数量特征
-USE_STATIC_EMBEDDINGS = False # 是否加入静态词向量（如 GloVe / FastText）的文本平均 embedding
+USE_BOW = True  # whether to use Bag-of-Words / TF-IDF text features
+USE_RATING = True  # whether to use rating (1–5) features
+USE_MULTI = True  # whether to use multi-select one-hot features
+USE_MULTI_INTERACTIONS = False  # whether to add pairwise interaction features between multi-select options
+USE_TEXT_LEN = True  # whether to add text length features
+USE_MULTI_CNT = True  # whether to add the count of selected multi-options
+USE_STATIC_EMBEDDINGS = False  # whether to use static word embeddings (e.g., GloVe / FastText)
 
 FILENAME = "training_data_clean.csv"
 TOKEN_PATTERN = re.compile(r"\b\w+\b", re.UNICODE)
 
 # Define the index of each type of questions
-TEXT_COLS = [1, 6, 9] # free-text (open-ended) questions
-RATING_COLS = [2, 4, 7, 8] # rating questions
-MULTI_COLS = [3, 5] # multi-select questions
+TEXT_COLS = [1, 6, 9]  # free-text (open-ended) questions
+RATING_COLS = [2, 4, 7, 8]  # rating questions
+MULTI_COLS = [3, 5]  # multi-select questions
 
-# Save the path of Vocab (for pred.py)
+# Paths for vocabulary/IDF (for pred.py)
 TEXT_VOCAB_PATH = "text_vocab.json"
+TEXT_IDF_PATH = "text_idf.json"
 MULTI_VOCAB_PATH = "multi_vocab.json"
 
-# Define
+# Canonical multi-select options
 CANONICAL_MULTI_TYPES = [
     "Math computations",
     "Writing or debugging code",
@@ -68,7 +69,7 @@ STOPWORDS = {
 
 # For extra features
 STATIC_EMBED_PATH = "static_embeddings.txt"  # Path to the static word embedding file
-USE_BIGRAMS = False  # Whether to include bigrams in the BoW representation
+USE_BIGRAMS = False  # Whether to include bigrams in the BoW/TF-IDF representation
 USE_MULTI_INTERACTIONS = False  # Whether to include pairwise interaction features for multi-select questions
 
 # Internal cache for static embeddings
@@ -77,67 +78,67 @@ _STATIC_EMBED_DIM: int = 0
 
 
 """
-This following modulo is for split training/validation/test data without sklearn.
+This following module is for splitting training/validation/test data without sklearn.
 """
 
 def train_val_test_split(df: pd.DataFrame, group_col: str = "student_id",train_ratio: float = 0.7, val_ratio: float = 0.15, random_state: int = 666):
-        """
-        Perform a stratified split of a DataFrame into train / validation / test sets, without relying on sklearn.
-        Stratified means each label is split independently according to the same ratios. The resulting train/val/test sets
-        preserve the label distribution of the original dataset.
+    """
+    Perform a grouped split of a DataFrame into train / validation / test sets, without relying on sklearn.
+    All rows that share the same group_col value (e.g., student_id) are kept in the same split.
 
-        :param df: DataFrame to split. Must contain a column named "label".
-        :param train_ratio: Ratio of training set size.
-        :param val_ratio: Ratio of validation set size.
-        :param random_state: Random seed for reproducibility.
-        :return: Tuple[df_train, df_val, df_test]
-        """
-        rng = np.random.default_rng(random_state)
+    :param df: DataFrame to split.
+    :param group_col: Column used for grouping (e.g., "student_id").
+    :param train_ratio: Ratio of training set size.
+    :param val_ratio: Ratio of validation set size.
+    :param random_state: Random seed for reproducibility.
+    :return: Tuple(df_train, df_val, df_test)
+    """
+    rng = np.random.default_rng(random_state)
 
-        # Unique student IDs
-        students = df[group_col].unique()
-        rng.shuffle(students)
+    # Unique group IDs (e.g., students)
+    groups = df[group_col].unique()
+    rng.shuffle(groups)
 
-        n = len(students)
-        n_train = int(n * train_ratio)
-        n_val = int(n * val_ratio)
+    n = len(groups)
+    n_train = int(n * train_ratio)
+    n_val = int(n * val_ratio)
 
-        train_students = set(students[:n_train])
-        val_students = set(students[n_train:n_train + n_val])
-        test_students = set(students[n_train + n_val:])
+    train_groups = set(groups[:n_train])
+    val_groups = set(groups[n_train:n_train + n_val])
+    test_groups = set(groups[n_train + n_val:])
 
-        df_train = df[df[group_col].isin(train_students)].reset_index(drop=True)
-        df_val = df[df[group_col].isin(val_students)].reset_index(drop=True)
-        df_test = df[df[group_col].isin(test_students)].reset_index(drop=True)
+    df_train = df[df[group_col].isin(train_groups)].reset_index(drop=True)
+    df_val = df[df[group_col].isin(val_groups)].reset_index(drop=True)
+    df_test = df[df[group_col].isin(test_groups)].reset_index(drop=True)
 
-        return df_train, df_val, df_test
+    return df_train, df_val, df_test
 
 
 
 """
-This following modulo is for processing data of generative free texts questions
+This following module is for processing data of generative free texts questions
 """
 
 def normalize_to_text_list(value) -> List[str]:
     """
     Convert a cell value into a normalized list of tokens by lowercasing, regex tokenization, and removal of simple
     English stopwords.
+
     :param value: A cell value from the DataFrame, which may be None, NaN, a scalar, or a list.
     :return: A list of cleaned tokens extracted from the value.
     """
-    if value is None or (isinstance(value, float) and np.isnan(value)): # value is None or NaN
+    if value is None or (isinstance(value, float) and np.isnan(value)):
         return []
 
-    if isinstance(value, list):  # value is a list
+    if isinstance(value, list):
         tokens: List[str] = []
-        for v in value:  # iterate the element
-            tokens.extend(normalize_to_text_list(v))  # expand the list
+        for v in value:
+            tokens.extend(normalize_to_text_list(v))
         return tokens
 
-    # value is a string
-    text = str(value).lower() # lowercase
-    tokens = TOKEN_PATTERN.findall(text) # # tokenize the text using the predefined regex
-    tokens = [t for t in tokens if t not in STOPWORDS] # remove stopwords
+    text = str(value).lower()
+    tokens = TOKEN_PATTERN.findall(text)
+    tokens = [t for t in tokens if t not in STOPWORDS]
     return tokens
 
 
@@ -145,10 +146,10 @@ def load_static_embeddings(path: str = STATIC_EMBED_PATH, max_words: Optional[in
     """
     Load static word embeddings from a plain-text file where each line has the format 'word v1 v2 v3 ...', and cache
     the result for reuse.
+
     :param path: Path to the embedding text file.
     :param max_words: Optional maximum number of lines (words) to read from the file.
     :return: A dictionary mapping each token string to its embedding vector as a NumPy array.
-            If the file does not exist or embeddings are disabled, an empty dict is returned.
     """
     global _STATIC_EMBED_CACHE, _STATIC_EMBED_DIM, USE_STATIC_EMBEDDINGS
 
@@ -161,8 +162,7 @@ def load_static_embeddings(path: str = STATIC_EMBED_PATH, max_words: Optional[in
         return _STATIC_EMBED_CACHE
 
     if not os.path.exists(path):
-        print(f"[WARN] Static embedding file '{path}' not found. "
-              f"Static embedding features will be skipped.")
+        print(f"[WARN] Static embedding file '{path}' not found. Static embedding features will be skipped.")
         USE_STATIC_EMBEDDINGS = False
         _STATIC_EMBED_CACHE = {}
         _STATIC_EMBED_DIM = 0
@@ -179,7 +179,7 @@ def load_static_embeddings(path: str = STATIC_EMBED_PATH, max_words: Optional[in
             try:
                 vec = np.asarray(parts[1:], dtype=np.float32)
             except ValueError:
-                continue  # Some lines may be malformed; skip them
+                continue
             embeddings[word] = vec
             if max_words is not None and i >= max_words:
                 break
@@ -223,7 +223,6 @@ def build_static_embedding_features(df: pd.DataFrame, text_cols: List[int] = TEX
     n = len(df)
 
     if (not USE_STATIC_EMBEDDINGS) or (_STATIC_EMBED_DIM == 0) or (len(embeddings) == 0):
-        # Static embeddings are disabled or unavailable; return an empty feature block
         return np.zeros((n, 0), dtype=np.float32)
 
     embed_dim = _STATIC_EMBED_DIM
@@ -246,7 +245,7 @@ def build_static_embedding_features(df: pd.DataFrame, text_cols: List[int] = TEX
             if count > 0:
                 avg_vec = vec_sum / float(count)
             else:
-                avg_vec = vec_sum  # remains all zeros if no embeddings matched
+                avg_vec = vec_sum
 
             start = j * embed_dim
             end = (j + 1) * embed_dim
@@ -275,10 +274,7 @@ def build_text_vocabulary(df: pd.DataFrame, text_cols: List[int], min_freq: int 
         for value in df[col_name]:
             tokens = normalize_to_text_list(value)
 
-            # unigram
             all_tokens = list(tokens)
-
-            # bigram 可选
             if USE_BIGRAMS:
                 bigrams = generate_ngrams(tokens, n=2)
                 all_tokens.extend(bigrams)
@@ -292,20 +288,64 @@ def build_text_vocabulary(df: pd.DataFrame, text_cols: List[int], min_freq: int 
     return vocab_per_col
 
 
-def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab_per_col: Dict[int, Dict[str, int]],) -> np.ndarray:
+def compute_text_idf(df: pd.DataFrame, text_cols: List[int], vocab_per_col: Dict[int, Dict[str, int]]) -> Dict[int, List[float]]:
     """
-    Build Bag-of-Words (BoW) feature blocks for each text column and concatenate them along the feature dimension,
-    using count-based BoW with log smoothing.
+    Compute IDF vectors for each text column based on document frequencies:
+    idf = log((N + 1) / (df + 1)) + 1   (sklearn-style smoothing)
 
-    :param df: Input DataFrame containing the text columns.
+    :param df: DataFrame containing the text columns.
     :param text_cols: A list of column indices corresponding to free-text questions.
-    :param vocab_per_col: A mapping {col_idx: {token: index}} defining per-column vocabularies.
-    :return: A BoW feature matrix of shape (num_samples, total_text_feature_dim).
+    :param vocab_per_col: Per-column vocabularies {col_idx: {token: index}}.
+    :return: A mapping {col_idx: [idf_0, idf_1, ...]} aligned with vocab_per_col[col_idx].
+    """
+    n_docs = len(df)
+    cols = df.columns
+    idf_per_col: Dict[int, List[float]] = {}
+
+    for col_idx in text_cols:
+        vocab = vocab_per_col[col_idx]
+        V = len(vocab)
+        if V == 0:
+            idf_per_col[col_idx] = []
+            continue
+
+        df_counts = np.zeros(V, dtype=np.int32)
+        col_name = cols[col_idx]
+
+        for _, row in df.iterrows():
+            tokens = normalize_to_text_list(row[col_name])
+            if USE_BIGRAMS:
+                bigrams = generate_ngrams(tokens, n=2)
+                all_tokens = tokens + bigrams
+            else:
+                all_tokens = tokens
+
+            indices_in_doc = set()
+            for t in all_tokens:
+                if t in vocab:
+                    indices_in_doc.add(vocab[t])
+
+            for idx in indices_in_doc:
+                df_counts[idx] += 1
+
+        idf_vec = np.log((n_docs + 1) / (df_counts + 1)) + 1.0
+        idf_per_col[col_idx] = idf_vec.astype(float).tolist()
+
+    return idf_per_col
+
+
+def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab_per_col: Dict[int, Dict[str, int]], text_idf_per_col: Optional[Dict[int, List[float]]] = None,) -> np.ndarray:
+    """
+    Build TF-IDF feature blocks for each text column and concatenate them along the feature dimension.
+
+    Steps:
+      1. Count-based BoW.
+      2. Apply log(1 + tf) sublinear scaling.
+      3. Multiply by pre-computed IDF per column (from training data).
     """
     num_samples = len(df)
     cols = df.columns
 
-    # 计算各列在大矩阵里的 offset
     offsets: Dict[int, int] = {}
     total_dim = 0
     for col_idx in text_cols:
@@ -315,6 +355,7 @@ def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab_per_col: Dic
 
     X = np.zeros((num_samples, total_dim), dtype=np.float32)
 
+    # term frequency
     for i, (_, row) in enumerate(df.iterrows()):
         for col_idx in text_cols:
             col_name = cols[col_idx]
@@ -334,41 +375,59 @@ def build_text_matrix(df: pd.DataFrame, text_cols: List[int], vocab_per_col: Dic
                     j = base + vocab[t]
                     X[i, j] += 1.0
 
-    X = np.log1p(X)  # log(1 + count) smoothing
+    # sublinear tf scaling
+    X = np.log1p(X)
+
+    # multiply by IDF if provided
+    if text_idf_per_col is not None:
+        for col_idx in text_cols:
+            vocab = vocab_per_col[col_idx]
+            V = len(vocab)
+            if V == 0:
+                continue
+            base = offsets[col_idx]
+            end = base + V
+            if col_idx in text_idf_per_col:
+                idf_vec = np.asarray(text_idf_per_col[col_idx], dtype=np.float32)
+                if idf_vec.shape[0] == V:
+                    X[:, base:end] *= idf_vec
+
     return X
 
 
 """
-This following modulo is for processing data of rating questions. Ratings are usually strings like '3 - Sometimes', 
+This following module is for processing data of rating questions. Ratings are usually strings like '3 - Sometimes', 
 and must be converted into numerical features.
 """
 
 def extract_rating(response) -> Optional[int]:
     """
     Extract the numeric rating from strings such as '3 - Sometimes'. That is, obtain the integer 3.
+
     :param response: A cell value from the DataFrame, commonly a string containing a number at the beginning
-    (e.g., "4 - Often")
-    :return: A numerical rating in integer, None if the cell value is missing.
+                     (e.g., "4 - Often").
+    :return: A numerical rating in integer form, None if the cell value is missing or malformed.
     """
-    match = re.match(r"^(\d+)", str(response))  # Convert response to string, then match digits at the beginning
-    return int(match.group(1)) if match else None # Return the integer if matched, otherwise return None
+    match = re.match(r"^(\d+)", str(response))
+    return int(match.group(1)) if match else None
 
 
 def compute_rating_mode(df: pd.DataFrame, rating_cols: List[int]) -> Dict[int, float]:
     """
     Compute the mode (most common value) for each rating column. Used later to fill missing ratings.
-    :param df: A dataframe containing numeric ratings.
+
+    :param df: A dataframe containing rating columns.
     :param rating_cols: A list of column indices containing rating values.
-    :return: A dictionary mapping rating column indices to their mode. {column #2: mode integer}
+    :return: A dictionary mapping rating column indices to their mode.
     """
     cols = df.columns
     modes: Dict[int, float] = {}
 
-    for col_i in rating_cols: # iterate the rating questions columns
+    for col_i in rating_cols:
         col_name = cols[col_i]
-        ratings = df[col_name].apply(extract_rating).dropna()  # Extract numeric ratings for this column and drop NaNs
-        mode_value = ratings.mode().iloc[0]  # ratings.mode() returns a Series, take the first mode
-        modes[col_i] = mode_value  # store in dict
+        ratings = df[col_name].apply(extract_rating).dropna()
+        mode_value = ratings.mode().iloc[0]
+        modes[col_i] = mode_value
 
     return modes
 
@@ -376,37 +435,32 @@ def compute_rating_mode(df: pd.DataFrame, rating_cols: List[int]) -> Dict[int, f
 def build_rating_matrix(df: pd.DataFrame, rating_cols: List[int]) -> np.ndarray:
     """
     Build a numeric feature matrix for rating questions.
+
     Each rating is:
       1. Extracted from strings such as "3 - Sometimes".
       2. Missing values are filled with the column's mode.
-      3. Scaled from the original [1, 5] range into [0, 1]. (Optional)
-    :param df: The dataset containing rating columns.
-    :param rating_cols: List of column indices corresponding to rating questions.
-    :return: A NumPy array of shape (num_samples, len(rating_cols)) where each entry is a normalized rating value
-    within [0, 1].
+      3. Scaled from the original [1, 5] range into [0, 1].
     """
     num_samples = len(df)
     num_ratings = len(rating_cols)
 
-    X_rating = np.zeros((num_samples, num_ratings), dtype=np.float32)  # Initialize all-0 output matrix
+    X_rating = np.zeros((num_samples, num_ratings), dtype=np.float32)
 
     cols = df.columns
-    rating_modes = compute_rating_mode(df, rating_cols)  # Pre-compute mode values for imputation
+    rating_modes = compute_rating_mode(df, rating_cols)
 
-    # Iterate through each row of the DataFrame
     for row_i, (_, row) in enumerate(df.iterrows()):
         for j, col_i in enumerate(rating_cols):
             col_name = cols[col_i]
             raw_value = row[col_name]
 
-            rating = extract_rating(raw_value)  # Extract the integer rating
+            rating = extract_rating(raw_value)
 
             if rating is not None:
                 X_rating[row_i, j] = rating
-            else:  # missing values will be fulfilled with the mode
+            else:
                 X_rating[row_i, j] = rating_modes[col_i]
 
-    # Rescale ratings from original range [1,5] to [0,1] (Optional: this is for normalized the numbers)
     X_rating = (X_rating - 1.0) / 4.0
 
     return X_rating
@@ -415,7 +469,7 @@ def build_rating_matrix(df: pd.DataFrame, rating_cols: List[int]) -> np.ndarray:
 
 
 """
-This following modulo is for processing data of multiplicative choices questions. The raw responses may contain commas, 
+This following module is for processing data of multiplicative choices questions. The raw responses may contain commas, 
 mixed text, inconsistent formatting, etc. These utilities map raw answers into canonical options and build numeric 
 feature matrices.
 """
@@ -424,33 +478,32 @@ def parse_multiselect(response):
     """
     Parse a multi-select question response into a list of canonical option strings,
     based on keyword matching defined in MULTI_MAP.
+
     :param response: A cell value containing a multi-select response, usually a comma-separated string.
     :return: A list of canonical option labels selected in this response.
     """
-    # Treat NaN or empty string as "no selection" (missing values solution)
     if pd.isna(response) or response == "":
         return []
 
-    clean = str(response).replace("\n", " ").replace("\r", " ")  # Clean text: remove line breaks
-    parts = [p.strip() for p in clean.split(",") if p.strip()]  # Split by comma, remove surrounding spaces, drop empty parts
+    clean = str(response).replace("\n", " ").replace("\r", " ")
+    parts = [p.strip() for p in clean.split(",") if p.strip()]
 
-    selected = set()  # use a set to ensure each selected option appears only once
+    selected = set()
     for raw in parts:
-        p = raw.lower()  # lowercase
-        # MULTI_MAP maps small keywords → canonical standardized names
+        p = raw.lower()
         for key, canonical in MULTI_MAP.items():
-            # If the keyword appears anywhere in the text, treat it as selected
             if key in p:
                 selected.add(canonical)
                 break
 
-    return list(selected)  # Convert set → list
+    return list(selected)
 
 
 def build_multiselect_vocabulary(df: pd.DataFrame,multi_cols: List[int]) -> Dict[str, int]:
     """
     Build a vocabulary for multi-select questions using the predefined canonical option list.
-    :param df: Input DataFrame (not used directly but kept for interface consistency).
+
+    :param df: Input DataFrame (not directly used, kept for interface consistency).
     :param multi_cols: A list of column indices for multi-select questions (not used directly here).
     :return: A mapping {option: index} for all canonical multi-select options.
     """
@@ -460,46 +513,42 @@ def build_multiselect_vocabulary(df: pd.DataFrame,multi_cols: List[int]) -> Dict
 def build_multiselect_matrix(df: pd.DataFrame, vocab: Dict[str, int]) -> np.ndarray:
     """
     Build a one-hot encoded matrix for multi-select questions across all specified columns.
+
     :param df: Input DataFrame containing multi-select question responses.
     :param vocab: A mapping {option: index} for canonical multi-select options.
     :return: A feature matrix of shape (num_samples, len(MULTI_COLS) * len(vocab)).
     """
-    n = len(df)  # Number of samples
-    V = len(vocab)  # Number of canonical options
-    Q = len(MULTI_COLS)  # Number of multi-select questions
-    X = np.zeros((n, Q * V), dtype=np.int32)  # Final matrix: each question gets its own V-sized block
+    n = len(df)
+    V = len(vocab)
+    Q = len(MULTI_COLS)
+    X = np.zeros((n, Q * V), dtype=np.int32)
 
     for i, (_, row) in enumerate(df.iterrows()):
-        # Process each multi-select question
         for q_idx, col_idx in enumerate(MULTI_COLS):
             response = row.iloc[col_idx]
-            tasks = parse_multiselect(response)  # Extract canonical selections
-            # Starting index of the block assigned to this question
+            tasks = parse_multiselect(response)
             base = q_idx * V
-            # Mark selected canonical options as 1
             for t in tasks:
                 if t in vocab:
                     X[i, base + vocab[t]] = 1
     return X
 
 
-def build_multiselect_interaction_features(df: pd.DataFrame, vocab: Dict[str, int], multi_cols: List[int] = MULTI_COLS,
-) -> np.ndarray:
+def build_multiselect_interaction_features(df: pd.DataFrame, vocab: Dict[str, int], multi_cols: List[int] = MULTI_COLS,) -> np.ndarray:
     """
     Build pairwise interaction features for multi-select questions. For each sample, the union of all selected canonical
     options across all multi-select questions is taken, and for every pair of options (opt_i, opt_j) with i < j, the
     corresponding feature is set to 1 if both are selected.
+
     :param df: Input DataFrame containing multi-select question responses.
     :param vocab: A mapping {option: index} for canonical multi-select options.
     :param multi_cols: A list of column indices for multi-select questions.
-    :return: A feature matrix of shape (num_samples, num_pairs), where num_pairs = C(V, 2)
-             and V is the number of canonical options.
+    :return: A feature matrix of shape (num_samples, num_pairs), where num_pairs = C(V, 2).
     """
     n = len(df)
     option_list = sorted(vocab.keys(), key=lambda x: vocab[x])
     V = len(option_list)
 
-    # 枚举所有 (i, j) 对，i < j
     pairs = []
     for i in range(V):
         for j in range(i + 1, V):
@@ -509,7 +558,6 @@ def build_multiselect_interaction_features(df: pd.DataFrame, vocab: Dict[str, in
     X_pair = np.zeros((n, num_pairs), dtype=np.int32)
 
     for row_i, (_, row) in enumerate(df.iterrows()):
-        # 收集该样本在所有 multi-select 问题中选择的 canonical 选项（用 index 表示）
         chosen_indices = set()
         for col_idx in multi_cols:
             response = row.iloc[col_idx]
@@ -519,7 +567,7 @@ def build_multiselect_interaction_features(df: pd.DataFrame, vocab: Dict[str, in
                     chosen_indices.add(vocab[t])
 
         if len(chosen_indices) < 2:
-            continue  # 少于两个选项，没有 pair
+            continue
 
         chosen_indices = sorted(chosen_indices)
         chosen_set = set(chosen_indices)
@@ -533,7 +581,7 @@ def build_multiselect_interaction_features(df: pd.DataFrame, vocab: Dict[str, in
 
 
 """
-This following modulo is for adding extra features.
+This following module is for adding extra features.
 """
 
 def build_text_length_features(df: pd.DataFrame,text_cols: List[int] = TEXT_COLS) -> np.ndarray:
@@ -584,94 +632,85 @@ def build_multiselect_count_features(df: pd.DataFrame,multi_cols: List[int] = MU
 
 
 """
-This following modulo is for combining matrix.
+This following module is for combining matrix.
 """
 
 def build_feature_matrix(df: pd.DataFrame,text_vocab: Dict[int, Dict[str, int]],multi_vocab: Dict[str, int],
+                         text_idf_per_col: Optional[Dict[int, List[float]]] = None,
                          text_cols: List[int] = TEXT_COLS,rating_cols: List[int] = RATING_COLS,) -> np.ndarray:
     """
-    Build the final feature matrix by concatenating multiple feature blocks, including text BoW,
+    Build the final feature matrix by concatenating multiple feature blocks, including text TF-IDF,
     numeric ratings, multi-select one-hot features and interactions, text length, multi-select
     option counts, and averaged static embeddings.
-    - Bag-of-Words (BoW) text features
-    - Normalized numeric rating values
-    - Multi-select one-hot encoded vectors
-    - Multi-select pairwise interaction features
-    - Text length features
-    - Multi-select option count features
-    - Static embedding averaged vectors
 
     :param df: Input DataFrame containing all raw survey responses.
     :param text_vocab: A mapping {col_idx: {token: index}} defining per-column text vocabularies.
     :param multi_vocab: A mapping {option: index} for canonical multi-select options.
+    :param text_idf_per_col: Optional mapping {col_idx: [idf_0, ...]} for TF-IDF weighting.
     :param text_cols: A list of column indices corresponding to free-text questions.
     :param rating_cols: A list of column indices corresponding to rating-scale questions.
     :return: A 2D NumPy array representing the concatenated feature matrix for all samples.
     """
     feature_blocks = []
 
-    # Text Bag-of-Words (BoW) features
+    # Bag-of-Words / TF-IDF text features
     if USE_BOW:
-        X_text = build_text_matrix(df, text_cols, text_vocab)
+        X_text = build_text_matrix(df, text_cols, text_vocab, text_idf_per_col)
         feature_blocks.append(X_text)
     else:
-        # Append an empty block (0-width) to maintain consistent concatenation
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
-    #
     # Rating-scale features (normalized to [0,1])
     if USE_RATING:
         X_rating = build_rating_matrix(df, rating_cols)
         feature_blocks.append(X_rating)
     else:
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
     # Multi-select one-hot encoded features
     if USE_MULTI:
         X_multi = build_multiselect_matrix(df, multi_vocab)
         feature_blocks.append(X_multi)
     else:
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
     # Multi-select pairwise interaction features
-    # Only enabled if both USE_MULTI and USE_MULTI_INTERACTIONS are True
     if USE_MULTI and USE_MULTI_INTERACTIONS:
         X_multi_inter = build_multiselect_interaction_features(df, multi_vocab, MULTI_COLS)
         feature_blocks.append(X_multi_inter)
     else:
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
     # Text length features (log of token count)
     if USE_TEXT_LEN:
         X_text_len = build_text_length_features(df, text_cols)
         feature_blocks.append(X_text_len)
     else:
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
     # Multi-select option count features (log of option count)
     if USE_MULTI_CNT:
         X_multi_cnt = build_multiselect_count_features(df, MULTI_COLS)
         feature_blocks.append(X_multi_cnt)
     else:
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
-    # 7. Static embedding averaged vectors (GloVe, FastText, etc）
+    # Static embedding averaged vectors (GloVe, FastText, etc.)
     if USE_STATIC_EMBEDDINGS:
         X_embed = build_static_embedding_features(df, text_cols)
         feature_blocks.append(X_embed)
     else:
-        feature_blocks.append(np.zeros((len(df), 0)))
+        feature_blocks.append(np.zeros((len(df), 0), dtype=np.float32))
 
-    # Final concatenation of all enabled feature blocks
     return np.concatenate(feature_blocks, axis=1)
 
 
 def debug_print_matrix(name: str, X: np.ndarray):
     """
     Print the name and shape of a feature matrix for debugging purposes.
+
     :param name: A short label for the matrix.
     :param X: The NumPy array whose shape will be printed.
-    :return: None. This function prints to stdout.
     """
     print(f"\n===== {name} =====")
     print("Shape:", X.shape)
@@ -680,36 +719,38 @@ def debug_print_matrix(name: str, X: np.ndarray):
 
 
 """
-This following modulo is for rreprocessing: training phase / test phase
+This following module is for preprocessing: training phase / test phase
 """
 
 def preprocess_train(filename: str):
     """
-    Preprocess a CSV file for the training phase by splitting into train/val/test, building vocabularies on the training
-    split only, and constructing feature matrices and label arrays for all three splits.
+    Preprocess a CSV file for the training phase by splitting into train/val/test, building vocabularies and IDF on the
+    training split only, and constructing feature matrices and label arrays for all three splits.
+
     :param filename: Path to the input CSV file containing labeled survey data.
-    :return: A tuple (X_train, X_val, X_test, y_train, y_val, y_test) with feature matrices and corresponding label
-    arrays as NumPy arrays.
+    :return: A tuple (X_train, X_val, X_test, y_train, y_val, y_test).
     """
     df = pd.read_csv(filename)
     df_train, df_val, df_test = train_val_test_split(df)
 
-    # Only build vocab on training data in case of data leakage
+    # Build vocab and IDF only on training data (avoid leakage)
     text_vocab = build_text_vocabulary(df_train, TEXT_COLS)
+    text_idf = compute_text_idf(df_train, TEXT_COLS, text_vocab)
     multi_vocab = build_multiselect_vocabulary(df_train, MULTI_COLS)
 
-    # save vocab to json(for preprocess_test/pred.py)
+    # save vocab and IDF to json (for preprocess_test / pred.py)
     with open(TEXT_VOCAB_PATH, "w", encoding="utf-8") as f:
-        # change to str type
-        json.dump({str(k): v for k, v in text_vocab.items()},
-                  f, ensure_ascii=False, indent=2)
+        json.dump({str(k): v for k, v in text_vocab.items()}, f, ensure_ascii=False, indent=2)
+
+    with open(TEXT_IDF_PATH, "w", encoding="utf-8") as f:
+        json.dump({str(k): v for k, v in text_idf.items()}, f, ensure_ascii=False, indent=2)
 
     with open(MULTI_VOCAB_PATH, "w", encoding="utf-8") as f:
         json.dump(multi_vocab, f, ensure_ascii=False, indent=2)
 
-    X_train = build_feature_matrix(df_train, text_vocab, multi_vocab)
-    X_val = build_feature_matrix(df_val, text_vocab, multi_vocab)
-    X_test = build_feature_matrix(df_test, text_vocab, multi_vocab)
+    X_train = build_feature_matrix(df_train, text_vocab, multi_vocab, text_idf)
+    X_val = build_feature_matrix(df_val, text_vocab, multi_vocab, text_idf)
+    X_test = build_feature_matrix(df_test, text_vocab, multi_vocab, text_idf)
 
     y_train = df_train["label"].astype(str).to_numpy(dtype=str)
     y_val = df_val["label"].astype(str).to_numpy(dtype=str)
@@ -720,12 +761,11 @@ def preprocess_train(filename: str):
 
 def preprocess_test(filename: str):
     """
-    Preprocess a new CSV file for the test or inference phase using vocabularies saved during training to ensure
-    consistent feature construction.
+    Preprocess a new CSV file for the test or inference phase using vocabularies and IDF
+    saved during training to ensure consistent feature construction.
 
     :param filename: Path to the input CSV file containing labeled or unlabeled survey data.
-    :return: A tuple (X, y) where X is the feature matrix and y is the label array as strings. If the 'label' column is
-    unavailable or incomplete, y may not be suitable for evaluation.
+    :return: A tuple (X, y) where X is the feature matrix and y is the label array as strings.
     """
     df = pd.read_csv(filename)
 
@@ -733,10 +773,14 @@ def preprocess_test(filename: str):
         raw_text_vocab = json.load(f)
     text_vocab = {int(k): v for k, v in raw_text_vocab.items()}
 
+    with open(TEXT_IDF_PATH, "r", encoding="utf-8") as f:
+        raw_text_idf = json.load(f)
+    text_idf = {int(k): v for k, v in raw_text_idf.items()}
+
     with open(MULTI_VOCAB_PATH, "r", encoding="utf-8") as f:
         multi_vocab = json.load(f)
 
-    X = build_feature_matrix(df, text_vocab, multi_vocab)
+    X = build_feature_matrix(df, text_vocab, multi_vocab, text_idf)
     y = df["label"].astype(str).to_numpy(dtype=str)
     return X, y
 
